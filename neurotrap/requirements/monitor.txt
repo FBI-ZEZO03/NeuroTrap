@@ -1,0 +1,4 @@
+scapy==2.5.0
+pymongo==4.7.2
+python-dotenv==1.0.1
+requests==2.32.3

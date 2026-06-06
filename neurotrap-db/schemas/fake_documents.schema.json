@@ -1,0 +1,22 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "fake_documents",
+    "description": "Decoy documents/assets seeded into an environment (may embed a honey/canary token). content_ref points to object storage; body is not stored inline.",
+    "required": ["document_id", "environment_ref", "filename", "doc_type", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "document_id": { "bsonType": "string", "pattern": "^fdoc_[0-9A-Z]{26}$" },
+      "environment_ref": { "bsonType": "string", "description": "References generated_environments.environment_id." },
+      "filename": { "bsonType": "string" },
+      "doc_type": { "enum": ["pdf", "docx", "xlsx", "txt", "env_file", "config", "source_code", "email"] },
+      "title": { "bsonType": "string" },
+      "sensitivity_label": { "enum": ["public", "internal", "confidential", "secret"] },
+      "content_ref": { "bsonType": ["string", "null"], "description": "Object-store key for the rendered document." },
+      "embedded_token_ref": { "bsonType": ["string", "null"], "description": "References canary_tokens.token_id or honey_tokens.token_id." },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

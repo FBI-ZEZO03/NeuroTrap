@@ -1,0 +1,14 @@
+{
+  "_id": { "$oid": "6661a1b2c3d4e5f600000350" },
+  "database_id": "fdb_01J9ZKQ0R1S2T3V4W5X6Y7Z8A9",
+  "environment_ref": "env_01J9ZKD0E1F2G3H4J5K6L7M8N9",
+  "server_ref": "fsrv_01J9ZKP0Q1R2S3T4V5W6X7Y8Z9",
+  "engine": "mysql",
+  "db_name": "payments_prod",
+  "tables": [
+    { "name": "customers", "row_count": 4821, "columns": ["id", "name", "email", "iban"], "contains_pii": true },
+    { "name": "transactions", "row_count": 158203, "columns": ["id", "customer_id", "amount", "ts"], "contains_pii": false }
+  ],
+  "created_at": { "$date": "2026-06-06T03:12:30Z" },
+  "updated_at": { "$date": "2026-06-06T03:12:30Z" }
+}

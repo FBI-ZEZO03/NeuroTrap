@@ -1,0 +1,23 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "deception_profiles",
+    "description": "Strategy profile mapping an attacker tier/intent to a deception plan (which templates and layers to deploy).",
+    "required": ["profile_id", "name", "target_tier", "layers", "template_refs", "is_active", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "profile_id": { "bsonType": "string", "pattern": "^dprof_[0-9A-Z]{26}$" },
+      "name": { "bsonType": "string" },
+      "description": { "bsonType": "string" },
+      "target_tier": { "enum": ["beginner", "automated_bot", "advanced_human", "any"] },
+      "target_intent": { "enum": ["reconnaissance", "credential_harvesting", "malware_deployment", "lateral_movement", "cryptomining", "bot_enrollment", "any"] },
+      "layers": { "bsonType": "array", "minItems": 1, "items": { "enum": ["network", "host", "service", "data", "credential", "document", "token"] } },
+      "template_refs": { "bsonType": "array", "items": { "bsonType": "string", "description": "References environment_templates.template_id." } },
+      "interactivity": { "enum": ["low", "medium", "high"] },
+      "is_active": { "bsonType": "bool" },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

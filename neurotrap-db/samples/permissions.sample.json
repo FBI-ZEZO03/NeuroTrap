@@ -1,0 +1,20 @@
+[
+  {
+    "_id": { "$oid": "6661a1b2c3d4e5f600000020" },
+    "permission_id": "perm_sessions:read",
+    "resource": "sessions",
+    "action": "read",
+    "description": "View attack sessions and their timelines.",
+    "created_at": { "$date": "2026-01-01T00:00:00Z" },
+    "updated_at": { "$date": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "_id": { "$oid": "6661a1b2c3d4e5f600000021" },
+    "permission_id": "perm_response:execute",
+    "resource": "response",
+    "action": "execute",
+    "description": "Trigger or approve autonomous response actions (block/isolate/…).",
+    "created_at": { "$date": "2026-01-01T00:00:00Z" },
+    "updated_at": { "$date": "2026-01-01T00:00:00Z" }
+  }
+]

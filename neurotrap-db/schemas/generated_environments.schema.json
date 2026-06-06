@@ -1,0 +1,28 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "generated_environments",
+    "description": "Concrete environment instantiated from a template for a specific attacker. Lifecycle: generated → (promoted to) active → retired. Links the component collections by reference.",
+    "required": ["environment_id", "template_ref", "profile_ref", "status", "generated_at", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "environment_id": { "bsonType": "string", "pattern": "^env_[0-9A-Z]{26}$" },
+      "template_ref": { "bsonType": "string", "description": "References environment_templates.template_id." },
+      "profile_ref": { "bsonType": "string", "description": "References deception_profiles.profile_id." },
+      "target_actor_ref": { "bsonType": ["string", "null"], "description": "References threat_actors.actor_id." },
+      "target_session_ref": { "bsonType": ["string", "null"], "description": "References attack_sessions.session_id that triggered generation." },
+      "status": { "enum": ["generated", "active", "retired"] },
+      "server_refs": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "database_refs": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "filesystem_refs": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "credential_refs": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "document_refs": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "token_refs": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "generated_at": { "bsonType": "date" },
+      "retired_at": { "bsonType": ["date", "null"] },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FHIM — Federated Honeypot Intelligence Mesh · NeuroTrap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#060810;--surface:#0d1123;--card:#111828;
+  --border:rgba(16,185,129,.15);--border-dim:rgba(255,255,255,.05);
+  --green:#10b981;--cyan:#00d4ff;--purple:#8b5cf6;--amber:#f59e0b;
+  --text:#e2e8f0;--dim:#64748b;--muted:#334155;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+}
+html{scrollbar-gutter:stable}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:rgba(16,185,129,.25);border-radius:4px}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(16,185,129,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,.025) 1px,transparent 1px);background-size:48px 48px}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 40% at 50% 0%,rgba(16,185,129,.05) 0%,transparent 70%)}
+header,section,.body,.full{position:relative;z-index:1}
+
+/* header */
+.ph{height:62px;display:flex;align-items:center;gap:16px;padding:0 28px;background:rgba(6,8,16,.92);border-bottom:1px solid var(--border);backdrop-filter:blur(16px);position:sticky;top:0;z-index:100}
+.ph::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--green),transparent);opacity:.6}
+.back{display:flex;align-items:center;gap:7px;color:var(--dim);text-decoration:none;font-size:11px;font-weight:500;padding:5px 12px;border:1px solid var(--border-dim);border-radius:5px;background:rgba(255,255,255,.04);transition:all .2s;white-space:nowrap}
+.back:hover{color:var(--green);border-color:rgba(16,185,129,.4)}
+.hbrand{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.hicon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:var(--green);flex-shrink:0;box-shadow:0 0 20px rgba(16,185,129,.2)}
+.htitle{font-size:14px;font-weight:700}
+.hsub{font-size:10px;color:var(--dim);margin-top:1px}
+.hright{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.mesh-badge{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--green);font-family:var(--mono);background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);padding:4px 10px;border-radius:20px}
+.ldot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* kpi */
+.krow{display:flex;gap:1px;background:rgba(255,255,255,.04);border-bottom:1px solid var(--border)}
+.kpi{flex:1;background:var(--surface);padding:14px 20px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;cursor:default;transition:background .2s}
+.kpi:hover{background:var(--card)}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;height:2px;width:50%;background:var(--kc,var(--green));opacity:.5;border-radius:0 2px 2px 0}
+.ki{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--kc,var(--green));background:color-mix(in srgb,var(--kc,var(--green)) 12%,transparent);border:1px solid color-mix(in srgb,var(--kc,var(--green)) 20%,transparent);flex-shrink:0}
+.kv{font-size:24px;font-weight:700;color:var(--kc,var(--green));font-family:var(--mono);line-height:1}
+.kl{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:3px}
+
+/* privacy banner */
+.priv-banner{display:flex;align-items:center;gap:10px;padding:10px 28px;background:rgba(16,185,129,.06);border-bottom:1px solid rgba(16,185,129,.15);font-size:11.5px;position:relative;z-index:1}
+.priv-banner i{color:var(--green);font-size:14px;flex-shrink:0}
+.priv-note{margin-left:auto;font-size:10px;color:var(--dim);font-family:var(--mono);flex-shrink:0}
+
+/* body */
+.body{display:grid;grid-template-columns:1fr 360px;gap:16px;padding:20px 28px}
+.card{background:rgba(13,17,35,.88);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.ch{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);padding-bottom:12px;border-bottom:1px solid var(--border-dim)}
+.ch i{color:var(--green);font-size:12px}
+.right{display:flex;flex-direction:column;gap:16px}
+.rb{margin-left:auto;background:rgba(255,255,255,.04);border:1px solid var(--border-dim);color:var(--dim);padding:3px 10px;font-size:10px;font-family:var(--mono);cursor:pointer;border-radius:5px;display:flex;align-items:center;gap:5px;transition:all .2s}
+.rb:hover{border-color:rgba(16,185,129,.4);color:var(--green)}
+
+/* nodes grid */
+.nodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.node-card{background:var(--card);border:1px solid var(--border-dim);border-radius:10px;padding:16px;transition:border-color .2s,box-shadow .2s}
+.node-card:hover{border-color:rgba(16,185,129,.4);box-shadow:0 0 24px rgba(16,185,129,.07)}
+.nc-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.nc-flag{font-size:26px}
+.nc-name{font-weight:700;font-size:13px}
+.nc-id{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.status-pill{margin-left:auto;font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:1px;flex-shrink:0}
+.status-pill.synced{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.status-pill.idle{background:rgba(100,116,139,.1);color:#64748b;border:1px solid rgba(100,116,139,.2)}
+.nc-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.nc-stat{background:var(--bg);border-radius:7px;padding:8px 10px;text-align:center}
+.nc-stat-v{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)}
+.nc-stat-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.nc-last{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:10px;border-top:1px solid var(--border-dim);padding-top:8px}
+
+/* fedavg flow */
+.flow{display:flex;flex-direction:column;gap:0}
+.flow-step{display:flex;align-items:flex-start;gap:12px;padding:13px;background:var(--card);border:1px solid var(--border-dim);border-radius:8px}
+.flow-connector{display:flex;justify-content:center;color:var(--muted);padding:4px 0;font-size:12px}
+.fnum{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#060810}
+.ft{font-weight:600;font-size:12px;margin-bottom:3px}
+.fd{font-size:11px;color:var(--dim);line-height:1.5}
+
+/* rounds */
+.rounds-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:220px}
+.round-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border-dim);border-radius:6px;padding:9px 12px;font-size:11px;font-family:var(--mono)}
+.rf1{color:var(--green);font-weight:700;font-size:14px}
+
+/* bottom */
+.full{padding:0 28px 28px}
+.rcard{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:4px}
+.rc{background:var(--card);border:1px solid var(--border-dim);border-radius:10px;padding:16px}
+.rct{font-weight:600;font-size:12px;margin-bottom:8px;display:flex;align-items:center;gap:6px;color:var(--green)}
+.rcb{font-size:11px;color:var(--dim);line-height:1.6}
+</style>
+</head>
+<body>
+
+<header class="ph">
+  <a href="/" class="back"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+  <div class="hbrand">
+    <div class="hicon"><i class="fa-solid fa-network-wired"></i></div>
+    <div>
+      <div class="htitle">Federated Honeypot Intelligence Mesh</div>
+      <div class="hsub">IDEA 03 · Collective defense across organizations — without ever sharing raw data · FedAvg + Gaussian Differential Privacy (ε=1.0)</div>
+    </div>
+  </div>
+  <div class="hright">
+    <span style="font-size:11px;font-weight:600;color:#ef4444;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Hard</span>
+    <span class="mesh-badge"><span class="ldot"></span>MESH ACTIVE</span>
+  </div>
+</header>
+
+<section class="krow">
+  <div class="kpi" style="--kc:#10b981"><div class="ki"><i class="fa-solid fa-circle-nodes"></i></div><div><div class="kv" id="kv-nodes">—</div><div class="kl">Active Nodes</div></div></div>
+  <div class="kpi" style="--kc:#00d4ff"><div class="ki"><i class="fa-solid fa-brain"></i></div><div><div class="kv" id="kv-f1" style="color:#00d4ff">—</div><div class="kl">Global F1 Score</div></div></div>
+  <div class="kpi" style="--kc:#8b5cf6"><div class="ki"><i class="fa-solid fa-database"></i></div><div><div class="kv" id="kv-samples" style="color:#8b5cf6">—</div><div class="kl">Total Samples</div></div></div>
+  <div class="kpi" style="--kc:#f59e0b"><div class="ki"><i class="fa-solid fa-lock"></i></div><div><div class="kv" style="color:#f59e0b">ε = 1.0</div><div class="kl">DP Epsilon</div></div></div>
+</section>
+
+<div class="priv-banner">
+  <i class="fa-solid fa-shield-halved"></i>
+  <strong style="color:var(--green)">Zero Raw Data Exposure</strong>
+  — Only differentially-private gradient deltas (ε=1.0, δ=1e-5) leave each node. No IPs, sessions, or logs ever transmitted between organizations.
+  <span class="priv-note">Flower (flwr) · Opacus DP · gRPC + mTLS</span>
+</div>
+
+<div class="body">
+
+  <!-- Nodes -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="ch"><i class="fa-solid fa-circle-nodes"></i> Network Nodes <button class="rb" onclick="loadAll()"><i class="fa-solid fa-rotate"></i> Refresh</button></div>
+      <div class="nodes-grid" id="nodes-grid">
+        <div style="color:var(--muted);font-size:12px;padding:20px;text-align:center">Loading nodes…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right -->
+  <div class="right">
+
+    <div class="card">
+      <div class="ch"><i class="fa-solid fa-diagram-project"></i> FedAvg Protocol</div>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="fnum" style="background:linear-gradient(135deg,#10b981,#00d4ff)">1</div>
+          <div><div class="ft">Local Training</div><div class="fd">Each node trains on its own honeypot sessions. Raw data stays local — only gradient deltas computed.</div></div>
+        </div>
+        <div class="flow-connector"><i class="fa-solid fa-arrow-down"></i></div>
+        <div class="flow-step">
+          <div class="fnum" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">2</div>
+          <div><div class="ft">DP Noise Injection</div><div class="fd">Gaussian noise (ε=1.0) added to gradients before transmission. Individual data becomes mathematically unrecoverable.</div></div>
+        </div>
+        <div class="flow-connector"><i class="fa-solid fa-arrow-down"></i></div>
+        <div class="flow-step">
+          <div class="fnum" style="background:linear-gradient(135deg,#8b5cf6,#00d4ff)">3</div>
+          <div><div class="ft">FedAvg Aggregation</div><div class="fd">Server averages all deltas using weighted FedAvg. No single organization's data is recoverable from the aggregate.</div></div>
+        </div>
+        <div class="flow-connector"><i class="fa-solid fa-arrow-down"></i></div>
+        <div class="flow-step">
+          <div class="fnum" style="background:linear-gradient(135deg,#10b981,#8b5cf6)">4</div>
+          <div><div class="ft">Global Model Update</div><div class="fd">Improved weights distributed to all nodes. Every organization gets smarter from collective intelligence.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch"><i class="fa-solid fa-history"></i> Aggregation Rounds</div>
+      <div class="rounds-list" id="rounds-list">
+        <div style="color:var(--muted);font-size:11px;text-align:center;padding:16px">No rounds yet</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="full">
+  <div class="card">
+    <div class="ch"><i class="fa-solid fa-microscope"></i> Academic Basis & Implementation Stack</div>
+    <div class="rcard">
+      <div class="rc"><div class="rct"><i class="fa-solid fa-graduation-cap"></i> IEEE S&P Reference</div><div class="rcb">McMahan et al., "Communication-Efficient Learning of Deep Networks from Decentralized Data" — the original FedAvg paper that FHIM implements.</div></div>
+      <div class="rc"><div class="rct"><i class="fa-solid fa-shield-halved"></i> Differential Privacy</div><div class="rcb">Gaussian mechanism (ε=1.0, δ=1e-5) via Opacus. Provides (ε,δ)-DP guarantees: any single node's data contribution is indistinguishable from noise.</div></div>
+      <div class="rc"><div class="rct"><i class="fa-solid fa-code-branch"></i> Tech Stack</div><div class="rcb">Flower (flwr) · PyTorch · Opacus · gRPC transport · mTLS authentication · Docker overlay network · NATS message queue.</div></div>
+      <div class="rc"><div class="rct"><i class="fa-solid fa-chart-line"></i> Expected F1 Gain</div><div class="rcb">Literature shows 8–15% F1 improvement over single-node training when ≥4 diverse nodes participate. Target &gt;90% global F1 within 20 rounds.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FLAGS={EG:'🇪🇬',US:'🇺🇸',DE:'🇩🇪',SA:'🇸🇦',GB:'🇬🇧',FR:'🇫🇷',CN:'🇨🇳',AU:'🇦🇺',JP:'🇯🇵'};
+document.addEventListener('DOMContentLoaded',loadAll);
+async function loadAll(){await Promise.allSettled([loadNodes(),loadRounds()])}
+
+async function loadNodes(){
+  try{
+    const d=await(await fetch('/api/fhim/nodes')).json();
+    const nodes=d.nodes||[],f1=d.global_f1||0;
+    document.getElementById('kv-nodes').textContent=nodes.length||'—';
+    document.getElementById('kv-f1').textContent=(f1*100).toFixed(1)+'%';
+    const total=nodes.reduce((a,n)=>a+(n.samples_contributed||0),0);
+    document.getElementById('kv-samples').textContent=total.toLocaleString();
+    renderNodes(nodes);
+  }catch(e){console.error(e)}
+}
+
+async function loadRounds(){
+  try{const d=await(await fetch('/api/fhim/rounds')).json();renderRounds(d.rounds||[])}catch{}
+}
+
+function renderNodes(nodes){
+  const el=document.getElementById('nodes-grid');
+  if(!nodes.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">No nodes registered</div>';return}
+  el.innerHTML='';
+  nodes.forEach(n=>{
+    const flag=FLAGS[n.location]||'🌐',f1=((n.f1_score||0)*100).toFixed(1),last=ts(n.last_round);
+    const card=document.createElement('div');card.className='node-card';
+    card.innerHTML=`<div class="nc-top"><span class="nc-flag">${flag}</span><div><div class="nc-name">${n.org_name}</div><div class="nc-id">${n.node_id}</div></div><span class="status-pill ${n.status}">${n.status}</span></div><div class="nc-stats"><div class="nc-stat"><div class="nc-stat-v">${f1}%</div><div class="nc-stat-l">Local F1</div></div><div class="nc-stat"><div class="nc-stat-v">${n.rounds_total||0}</div><div class="nc-stat-l">Rounds</div></div><div class="nc-stat"><div class="nc-stat-v" style="font-size:14px">${(n.samples_contributed||0).toLocaleString()}</div><div class="nc-stat-l">Samples</div></div><div class="nc-stat"><div class="nc-stat-v" style="font-size:14px;color:${n.status==='synced'?'#10b981':'#64748b'}">${n.status}</div><div class="nc-stat-l">Status</div></div></div><div class="nc-last"><i class="fa-regular fa-clock" style="margin-right:4px"></i>Last round: ${last} &nbsp;·&nbsp; ${n.location||'Unknown'}</div>`;
+    el.appendChild(card);
+  });
+}
+
+function renderRounds(rounds){
+  const el=document.getElementById('rounds-list');
+  if(!rounds.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:16px;font-size:11px">No aggregation rounds yet</div>';return}
+  el.innerHTML='';
+  rounds.slice(0,10).forEach(r=>{
+    const item=document.createElement('div');item.className='round-item';
+    item.innerHTML=`<span class="rf1">${((r.global_f1_after||0)*100).toFixed(1)}%</span><span style="color:var(--dim)">F1</span><span style="color:var(--text)">${r.participants||'—'} nodes</span><span style="color:var(--dim)">·</span><span>${(r.total_samples||0).toLocaleString()} samples</span><span style="margin-left:auto;color:var(--muted)">${ts(r.timestamp)}</span>`;
+    el.appendChild(item);
+  });
+}
+
+function ts(t){if(!t)return'—';const s=Math.floor(Date.now()/1000-t);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago'}
+</script>
+</body>
+</html>

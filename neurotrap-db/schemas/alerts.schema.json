@@ -1,0 +1,38 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "alerts",
+    "description": "Operational alerts with multi-channel delivery tracking (embedded). References the originating session/actor. Hot collection; 180d then cold.",
+    "required": ["alert_id", "alert_type", "severity", "source", "status", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "alert_id": { "bsonType": "string", "pattern": "^alrt_[0-9A-Z]{26}$" },
+      "alert_type": { "enum": ["new_session", "high_risk_session", "credential_use", "malware_download", "canary_triggered", "campaign_detected", "response_applied", "system"] },
+      "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+      "source": { "enum": ["detection", "response_engine", "deception", "ai_analyst", "campaign_engine", "system"] },
+      "title": { "bsonType": "string" },
+      "message": { "bsonType": "string" },
+      "related_session": { "bsonType": ["string", "null"] },
+      "related_actor": { "bsonType": ["string", "null"] },
+      "assigned_to": { "bsonType": ["string", "null"], "description": "users.user_id." },
+      "status": { "enum": ["open", "acknowledged", "resolved", "suppressed"] },
+      "notification_status": { "enum": ["pending", "sent", "partial", "failed"] },
+      "delivery_tracking": {
+        "bsonType": "array",
+        "description": "Per-channel delivery outcome (embedded).",
+        "items": {
+          "bsonType": "object", "additionalProperties": false, "required": ["channel", "status"],
+          "properties": {
+            "channel": { "enum": ["email", "slack", "telegram", "webhook"] },
+            "status": { "enum": ["pending", "sent", "failed"] },
+            "ts": { "bsonType": ["date", "null"] },
+            "error": { "bsonType": ["string", "null"] }
+          }
+        }
+      },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

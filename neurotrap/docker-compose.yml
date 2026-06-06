@@ -1,0 +1,266 @@
+version: "3.9"
+
+networks:
+  honeypot-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  elk-net:
+    driver: bridge
+    internal: true
+  management-net:
+    driver: bridge
+    internal: true
+
+volumes:
+  cowrie-logs:
+  dionaea-logs:
+  opencanary-logs:
+  galah-logs:
+  mongodb-data:
+
+services:
+  # ─────────────────────────────────────────────
+  # COWRIE — SSH/Telnet honeypot
+  # ─────────────────────────────────────────────
+  cowrie:
+    image: cowrie/cowrie:latest
+    container_name: neurotrap-cowrie
+    restart: unless-stopped
+    networks:
+      - honeypot-net
+      - elk-net
+    ports:
+      - "22:2222"
+      - "23:2223"
+    volumes:
+      - ./config/cowrie/cowrie.cfg:/cowrie/etc/cowrie.cfg:ro
+      - ./config/cowrie/userdb.txt:/cowrie/etc/userdb.txt:ro
+      - cowrie-logs:/cowrie/var/log/cowrie
+    environment:
+      - COWRIE_LISTEN_ENDPOINTS=tcp:2222:interface=0.0.0.0
+
+  # ─────────────────────────────────────────────
+  # DIONAEA — Multi-protocol malware collector
+  # ─────────────────────────────────────────────
+  dionaea:
+    image: dinotools/dionaea:latest
+    container_name: neurotrap-dionaea
+    restart: unless-stopped
+    networks:
+      - honeypot-net
+      - elk-net
+    ports:
+      - "21:21"
+      - "80:80"
+      - "445:445"
+      - "3306:3306"
+    volumes:
+      - ./config/dionaea/dionaea.cfg:/opt/dionaea/etc/dionaea/dionaea.cfg:ro
+      - dionaea-logs:/opt/dionaea/var/log/dionaea
+
+  # ─────────────────────────────────────────────
+  # OPENCANARY — Thinkst maintained low-interaction multi-service honeypot
+  # (replaces the unmaintained Honeyd). opencanary.conf enables the full
+  # module set: SSH, FTP, HTTP, SMB, MySQL, MSSQL, SNMP, Telnet, VNC, RDP.
+  # Cowrie (22/23) and Dionaea (21/80/445/3306) own the overlapping
+  # front-line host ports, so only the gap ports are published here — this
+  # also closes the gap where UFW opens 3389 but nothing listened.
+  # ─────────────────────────────────────────────
+  opencanary:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.opencanary
+    container_name: neurotrap-opencanary
+    restart: unless-stopped
+    networks:
+      - honeypot-net
+      - elk-net
+    ports:
+      - "1433:1433"      # MSSQL
+      - "161:161/udp"    # SNMP
+      - "5900:5900"      # VNC
+      - "3389:3389"      # RDP — closes the previously unserved UFW-open port
+    volumes:
+      - ./config/opencanary/opencanary.conf:/root/.opencanary.conf:ro
+      - opencanary-logs:/var/tmp/opencanary
+
+  # ─────────────────────────────────────────────
+  # GALAH — LLM-powered web-application honeypot. Dynamically generates
+  # realistic HTTP responses via an LLM API to back the Intermediate
+  # deception profile's fake web app. Targets the Anthropic API by default;
+  # switch the command to `--provider openai` + OPENAI_API_KEY for OpenAI.
+  # ─────────────────────────────────────────────
+  galah:
+    image: 0x4d31/galah:latest
+    container_name: neurotrap-galah
+    restart: unless-stopped
+    networks:
+      - honeypot-net
+      - elk-net
+    ports:
+      - "8088:8080"      # Galah web honeypot
+    command:
+      - "--provider"
+      - "${GALAH_PROVIDER:-anthropic}"
+      - "--model"
+      - "${GALAH_MODEL:-claude-opus-4-8}"
+      - "--config"
+      - "/galah/config/config.yaml"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ./config/galah/config.yaml:/galah/config/config.yaml:ro
+      - galah-logs:/galah/logs
+
+  # ─────────────────────────────────────────────
+  # NATIVE HONEYPOTS — Pure-Python SSH/HTTP/FTP/Telnet sensors
+  # Opt-in (does not clash with Cowrie/Dionaea):
+  #   docker compose --profile native-honeypots up
+  # ─────────────────────────────────────────────
+  honeypots:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.honeypots
+    container_name: neurotrap-honeypots
+    restart: unless-stopped
+    profiles:
+      - native-honeypots
+    networks:
+      - honeypot-net
+      - elk-net
+    ports:
+      - "2222:22"     # SSH   (Cowrie owns host :22)
+      - "2323:23"     # Telnet
+      - "2121:21"     # FTP
+      - "8081:80"     # HTTP
+    environment:
+      - MONGO_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-neurotrap_secret}@mongodb:27017/neurotrap?authSource=admin
+      - HONEYPOTS_ENABLED=${HONEYPOTS_ENABLED:-ssh,http,ftp,telnet}
+    depends_on:
+      - mongodb
+
+  # ─────────────────────────────────────────────
+  # MONGODB — Event & profile storage
+  # ─────────────────────────────────────────────
+  mongodb:
+    image: mongo:6.0
+    container_name: neurotrap-mongodb
+    restart: unless-stopped
+    networks:
+      - elk-net
+      - management-net
+    volumes:
+      - mongodb-data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASS:-neurotrap_secret}
+      - MONGO_INITDB_DATABASE=neurotrap
+
+  # ─────────────────────────────────────────────
+  # PACKET MONITOR — Scapy-based detection engine
+  # ─────────────────────────────────────────────
+  packet-monitor:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.monitor
+    container_name: neurotrap-monitor
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ./src:/app/src:ro
+      - ./logs:/app/logs
+    environment:
+      - MONGO_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-neurotrap_secret}@mongodb:27017/neurotrap?authSource=admin
+      - MONITOR_INTERFACE=${MONITOR_INTERFACE:-eth0}
+    depends_on:
+      - mongodb
+
+  # ─────────────────────────────────────────────
+  # BEHAVIOR ENGINE — ML classifier & profiler
+  # ─────────────────────────────────────────────
+  behavior-engine:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.behavior
+    container_name: neurotrap-behavior
+    restart: unless-stopped
+    networks:
+      - elk-net
+      - management-net
+    volumes:
+      - ./src:/app/src:ro
+      - ./data:/app/data
+      - cowrie-logs:/cowrie/logs:ro
+    environment:
+      - MONGO_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-neurotrap_secret}@mongodb:27017/neurotrap?authSource=admin
+    depends_on:
+      - mongodb
+
+  # ─────────────────────────────────────────────
+  # DECEPTION ENGINE — Dynamic honeypot spawner
+  # ─────────────────────────────────────────────
+  deception-engine:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.deception
+    container_name: neurotrap-deception
+    restart: unless-stopped
+    networks:
+      - honeypot-net
+      - elk-net
+      - management-net
+    volumes:
+      - ./src:/app/src:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - MONGO_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-neurotrap_secret}@mongodb:27017/neurotrap?authSource=admin
+    depends_on:
+      - mongodb
+      - behavior-engine
+
+  # ─────────────────────────────────────────────
+  # FLASK API + DASHBOARD
+  # ─────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: neurotrap-api
+    restart: unless-stopped
+    networks:
+      - management-net
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./src:/app/src:ro
+      - ./dashboard:/app/dashboard:ro
+    environment:
+      - MONGO_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-neurotrap_secret}@mongodb:27017/neurotrap?authSource=admin
+      - SECRET_KEY=${SECRET_KEY:-change_me_in_production}
+      - JWT_SECRET=${JWT_SECRET:-change_me_jwt}
+    depends_on:
+      - mongodb
+
+  # ─────────────────────────────────────────────
+  # NGINX — Reverse proxy with SSL
+  # ─────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: neurotrap-nginx
+    restart: unless-stopped
+    networks:
+      - management-net
+    ports:
+      - "443:443"
+      - "8080:80"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api

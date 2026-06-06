@@ -1,0 +1,15 @@
+{
+  "_id": { "$oid": "6661a1b2c3d4e5f600000340" },
+  "server_id": "fsrv_01J9ZKP0Q1R2S3T4V5W6X7Y8Z9",
+  "environment_ref": "env_01J9ZKD0E1F2G3H4J5K6L7M8N9",
+  "hostname": "fin-jump01",
+  "ip": "172.20.0.50",
+  "os_banner": "Ubuntu 22.04.4 LTS",
+  "role": "jump_host",
+  "services": [
+    { "protocol": "ssh", "port": 22, "banner": "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6" },
+    { "protocol": "https", "port": 443, "banner": "nginx/1.18.0 (Ubuntu)" }
+  ],
+  "created_at": { "$date": "2026-06-06T03:12:30Z" },
+  "updated_at": { "$date": "2026-06-06T03:12:30Z" }
+}

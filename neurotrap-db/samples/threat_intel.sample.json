@@ -1,0 +1,23 @@
+{
+  "_id": { "$oid": "6661a1b2c3d4e5f600000120" },
+  "indicator": "185.220.101.4",
+  "indicator_type": "ipv4",
+  "reputation_score": 92.0,
+  "virustotal": { "malicious": 14, "suspicious": 3, "harmless": 41, "last_analysis_date": { "$date": "2026-06-05T12:00:00Z" } },
+  "abuseipdb": { "abuse_confidence_score": 100, "total_reports": 873, "country_code": "DE" },
+  "shodan": { "open_ports": [22, 80, 443], "tags": ["tor", "proxy"], "org": "Hetzner Online GmbH" },
+  "otx": { "pulse_count": 7, "pulse_names": ["Tor exit nodes", "SSH bruteforce infra"] },
+  "geoip": { "country": "DE", "city": "Frankfurt", "asn": 24940, "lat": 50.1109, "lon": 8.6821 },
+  "threat_feeds": [
+    { "feed": "tor_exit", "listed": true, "category": "anonymizer" },
+    { "feed": "ssh_bruteforce", "listed": true, "category": "bruteforce" }
+  ],
+  "enrichment_history": [
+    { "ts": { "$date": "2026-05-30T00:00:00Z" }, "provider": "abuseipdb", "reputation_score": 88.0 },
+    { "ts": { "$date": "2026-06-06T00:00:00Z" }, "provider": "abuseipdb", "reputation_score": 92.0 }
+  ],
+  "fetched_at": { "$date": "2026-06-06T00:00:00Z" },
+  "expires_at": { "$date": "2026-06-13T00:00:00Z" },
+  "created_at": { "$date": "2026-05-30T00:00:00Z" },
+  "updated_at": { "$date": "2026-06-06T00:00:00Z" }
+}

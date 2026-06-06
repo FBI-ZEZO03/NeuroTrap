@@ -1,0 +1,33 @@
+# Galah — LLM-powered web-application honeypot
+# Backs the Intermediate deception profile's "fake web app" with dynamically
+# generated, realistic HTTP responses.
+#
+# LLM backend: this deployment targets the Anthropic API (project default).
+#   - provider/model/api-key are supplied via the container command + env
+#     (LLM_PROVIDER, ANTHROPIC_API_KEY) in docker-compose.yml.
+#   - To use OpenAI instead, switch the command to `--provider openai` and set
+#     OPENAI_API_KEY in .env.
+
+ports:
+  - port: 8080
+    protocol: HTTP
+
+# Cache LLM-generated responses so identical requests don't re-hit the API.
+cache:
+  enabled: true
+  duration: 24h          # 0 = cache forever, -1 = disable
+
+# Event logging — JSONL, one event per line. Shipped by Filebeat to the
+# detection pipeline (see Week 2 plan).
+logging:
+  event_log_file: /galah/logs/galah.json
+  log_level: info
+
+# System prompt steering the generated responses toward a believable
+# corporate web application.
+prompts:
+  system_prompt: >
+    You are a web server for a mid-sized company's internal portal. Generate
+    realistic HTTP responses (headers and body) for the incoming request.
+    Responses must be internally consistent, reference plausible internal
+    hostnames and paths, and never reveal that this is a honeypot.

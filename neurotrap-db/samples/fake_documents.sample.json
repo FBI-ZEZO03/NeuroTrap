@@ -1,0 +1,13 @@
+{
+  "_id": { "$oid": "6661a1b2c3d4e5f600000380" },
+  "document_id": "fdoc_01J9ZKT0V1W2X3Y4Z5A6B7C8D9",
+  "environment_ref": "env_01J9ZKD0E1F2G3H4J5K6L7M8N9",
+  "filename": "Q1_Payments_Reconciliation.xlsx",
+  "doc_type": "xlsx",
+  "title": "Q1 Payments Reconciliation (CONFIDENTIAL)",
+  "sensitivity_label": "confidential",
+  "content_ref": "s3://neurotrap-decoys/env_01J9ZKD0/Q1_Payments_Reconciliation.xlsx",
+  "embedded_token_ref": "ctok_01J9ZKW0X1Y2Z3A4B5C6D7E8F9",
+  "created_at": { "$date": "2026-06-06T03:12:30Z" },
+  "updated_at": { "$date": "2026-06-06T03:12:30Z" }
+}

@@ -1,0 +1,31 @@
+{
+  "_id": { "$oid": "6661a1b2c3d4e5f6000003c0" },
+  "output_id": "aout_01J9ZKY0Z1A2B3C4D5E6F7G8H9",
+  "related_session": "sess_01J9ZK9A0B1C2D3E4F5G6H7J8K",
+  "related_actor": "actor_01J9ZKB0C1D2E3F4G5H6J7K8L9",
+  "model": "claude-haiku-4-5",
+  "attack_explanation": "The attacker authenticated as 'admin', read /etc/shadow, then downloaded a Mirai-style payload to /tmp and triggered a planted AWS key.",
+  "session_summary": "132s SSH session from a Tor exit node; credential access + ingress tool transfer; engaged the FinServ decoy and burned a canary.",
+  "mitre_explanation": "T1110 (brute force) → T1003.008 (shadow read) → T1105 (tool transfer). C2 not confirmed.",
+  "risk_explanation": "High risk: hands-on operator, successful auth, malware staging, and canary use within a single session.",
+  "explain_why": "Score 78.5 driven by successful credential use, malware download, and canary trigger; tier classified advanced_human.",
+  "recommended_responses": [
+    { "action": "isolate", "rationale": "Contain the live session and preserve forensics.", "priority": "high" },
+    { "action": "block", "rationale": "Block the source IP at the firewall after capture.", "priority": "high" }
+  ],
+  "generated_insights": "Behaviour matches a known SSH-bruteforce botnet cluster; likely part of a broader campaign.",
+  "executive_summary": "A skilled intruder breached a decoy host, attempted credential theft and malware staging, and was safely contained by the deception layer.",
+  "incident_report_ref": "rpt_01J9ZKH0J1K2L3M4N5P6Q7R8S9",
+  "ai_confidence_score": 0.87,
+  "review_status": "approved",
+  "reviewed_by": "usr_01J9ZK7Q8M3N4P5R6S7T8V9W0X",
+  "analyst_notes": [
+    { "ts": { "$date": "2026-06-06T04:00:00Z" }, "author_ref": "usr_01J9ZK7Q8M3N4P5R6S7T8V9W0X", "note": "Confirmed canary trigger; escalating to campaign review." }
+  ],
+  "analyst_feedback": [
+    { "ts": { "$date": "2026-06-06T04:01:00Z" }, "rating": "up", "comment": "Accurate TTP chain." }
+  ],
+  "generated_at": { "$date": "2026-06-06T03:14:20Z" },
+  "created_at": { "$date": "2026-06-06T03:14:20Z" },
+  "updated_at": { "$date": "2026-06-06T04:01:00Z" }
+}

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>GADCF — Generative AI Deception Content Factory · NeuroTrap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#060810;--surface:#0d1123;--card:#111828;
+  --border:rgba(139,92,246,.15);--border-dim:rgba(255,255,255,.05);
+  --purple:#8b5cf6;--purple-glow:rgba(139,92,246,.2);
+  --cyan:#00d4ff;--amber:#f59e0b;--red:#ef4444;--green:#10b981;
+  --text:#e2e8f0;--dim:#64748b;--muted:#334155;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+}
+html{scrollbar-gutter:stable}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:rgba(139,92,246,.25);border-radius:4px}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(139,92,246,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,.03) 1px,transparent 1px);background-size:48px 48px}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 40% at 50% 0%,rgba(139,92,246,.06) 0%,transparent 70%)}
+header,section,.layout,.bottom{position:relative;z-index:1}
+
+/* header */
+.page-header{height:62px;display:flex;align-items:center;gap:16px;padding:0 28px;background:rgba(6,8,16,.92);border-bottom:1px solid var(--border);backdrop-filter:blur(16px);position:sticky;top:0;z-index:100}
+.page-header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--purple),transparent);opacity:.6}
+.back-btn{display:flex;align-items:center;gap:7px;color:var(--dim);text-decoration:none;font-size:11px;font-weight:500;padding:5px 12px;border:1px solid var(--border-dim);border-radius:5px;background:rgba(255,255,255,.04);transition:all .2s;white-space:nowrap}
+.back-btn:hover{color:var(--purple);border-color:rgba(139,92,246,.4)}
+.hbrand{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.hicon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.4);color:var(--purple);flex-shrink:0;box-shadow:0 0 20px rgba(139,92,246,.25)}
+.htitle{font-size:14px;font-weight:700;color:var(--text)}
+.hsub{font-size:10px;color:var(--dim);margin-top:1px}
+.hright{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.live-badge{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--purple);font-family:var(--mono);background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);padding:3px 9px;border-radius:20px}
+.ldot{width:5px;height:5px;border-radius:50%;background:var(--purple);box-shadow:0 0 6px var(--purple);animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* kpi */
+.kpi-row{display:flex;gap:1px;background:rgba(255,255,255,.04);border-bottom:1px solid var(--border)}
+.kpi{flex:1;background:var(--surface);padding:14px 20px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;cursor:default;transition:background .2s}
+.kpi:hover{background:var(--card)}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;height:2px;width:50%;background:var(--kc,var(--purple));opacity:.5;border-radius:0 2px 2px 0}
+.ki{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--kc,var(--purple));background:color-mix(in srgb,var(--kc,var(--purple)) 12%,transparent);border:1px solid color-mix(in srgb,var(--kc,var(--purple)) 20%,transparent);flex-shrink:0;transition:box-shadow .3s}
+.kpi:hover .ki{box-shadow:0 0 16px color-mix(in srgb,var(--kc,var(--purple)) 35%,transparent)}
+.kv{font-size:24px;font-weight:700;color:var(--kc,var(--purple));font-family:var(--mono);line-height:1}
+.kl{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:3px}
+
+/* main layout */
+.layout{display:grid;grid-template-columns:260px 1fr 1fr;gap:16px;padding:20px 28px}
+.card{background:rgba(13,17,35,.88);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.ch{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);padding-bottom:12px;border-bottom:1px solid var(--border-dim)}
+.ch i{color:var(--purple);font-size:12px}
+
+/* generator */
+.gen-field{display:flex;flex-direction:column;gap:6px}
+.gen-field label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px}
+.opts{display:flex;flex-wrap:wrap;gap:5px}
+.opt{display:flex;align-items:center;gap:5px;background:var(--card);border:1px solid var(--border-dim);color:var(--dim);padding:5px 10px;font-size:11px;cursor:pointer;border-radius:5px;transition:all .15s;font-family:var(--sans)}
+.opt:hover{border-color:rgba(139,92,246,.4);color:var(--text)}
+.opt.active{background:rgba(139,92,246,.15);border-color:rgba(139,92,246,.5);color:#c4b5fd}
+.soph-wrap{display:flex;flex-direction:column;gap:6px}
+.soph-range{width:100%;accent-color:var(--purple);cursor:pointer}
+.soph-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:var(--mono)}
+.gen-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,rgba(139,92,246,.3),rgba(0,212,255,.15));border:1px solid rgba(139,92,246,.5);color:#e0d7ff;padding:11px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;width:100%;transition:background .2s,box-shadow .2s}
+.gen-btn:hover{background:linear-gradient(135deg,rgba(139,92,246,.5),rgba(0,212,255,.25));box-shadow:0 0 24px rgba(139,92,246,.3)}
+.gen-btn:disabled{opacity:.5;cursor:not-allowed}
+.gen-status{font-size:11px;font-family:var(--mono);color:var(--dim);min-height:16px}
+.asset-legend{display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid var(--border-dim)}
+.legend-ttl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.li{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--dim)}
+
+/* assets list */
+.assets-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:580px;padding-right:4px}
+.asset-card{background:var(--card);border:1px solid var(--border-dim);border-radius:8px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:border-color .15s,background .15s}
+.asset-card:hover{border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.04)}
+.asset-card.sel{border-color:var(--purple);background:rgba(139,92,246,.08)}
+.ai{width:36px;height:36px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.an{font-family:var(--mono);font-size:11.5px;color:var(--cyan);font-weight:600}
+.am{font-size:10px;color:var(--dim);margin-top:2px}
+.src-pill{margin-left:auto;font-size:8px;font-weight:800;padding:2px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:1px;flex-shrink:0}
+.count-badge{font-size:10px;color:var(--muted);margin-left:auto;font-family:var(--mono)}
+
+/* preview */
+.preview-area{background:var(--bg);border:1px solid var(--border-dim);border-radius:8px;padding:16px;font-family:var(--mono);font-size:11.5px;line-height:1.7;overflow-y:auto;white-space:pre-wrap;color:#e2e8f0;flex:1;min-height:400px;max-height:560px;tab-size:2}
+.preview-placeholder{height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;gap:12px;font-family:var(--sans)}
+.preview-name{font-size:10px;color:var(--dim);font-family:var(--mono);margin-left:auto}
+.bottom{padding:0 28px 28px}
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+  <div class="hbrand">
+    <div class="hicon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+    <div>
+      <div class="htitle">Generative AI Deception Content Factory</div>
+      <div class="hsub">IDEA 02 · LLM-generated fake assets so contextually coherent, attackers cannot tell the difference · Ollama (Llama 3.1 / Mistral) + RAG + ChromaDB</div>
+    </div>
+  </div>
+  <div class="hright">
+    <span style="font-size:11px;font-weight:600;color:#f59e0b;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Medium</span>
+    <span class="live-badge"><span class="ldot"></span>ACTIVE</span>
+  </div>
+</header>
+
+<section class="kpi-row">
+  <div class="kpi" style="--kc:#8b5cf6"><div class="ki"><i class="fa-solid fa-file-code"></i></div><div><div class="kv" id="kv-total">—</div><div class="kl">Assets Generated</div></div></div>
+  <div class="kpi" style="--kc:#00d4ff"><div class="ki"><i class="fa-solid fa-microchip-ai"></i></div><div><div class="kv" id="kv-llm" style="color:#00d4ff">—</div><div class="kl">LLM Backend</div></div></div>
+  <div class="kpi" style="--kc:#10b981"><div class="ki"><i class="fa-solid fa-industry"></i></div><div><div class="kv" style="color:#10b981">6</div><div class="kl">Industries</div></div></div>
+  <div class="kpi" style="--kc:#f59e0b"><div class="ki"><i class="fa-solid fa-layer-group"></i></div><div><div class="kv" style="color:#f59e0b">5</div><div class="kl">Asset Types</div></div></div>
+</section>
+
+<div class="layout">
+
+  <!-- Generator -->
+  <div class="card" style="align-self:start;position:sticky;top:72px">
+    <div class="ch"><i class="fa-solid fa-sliders"></i> Configure Generator</div>
+
+    <div class="gen-field">
+      <label>Target Industry</label>
+      <div class="opts" id="ind-opts">
+        <button class="opt active" data-v="financial_services"><i class="fa-solid fa-building-columns"></i> Financial</button>
+        <button class="opt" data-v="saas_startup"><i class="fa-solid fa-rocket"></i> SaaS</button>
+        <button class="opt" data-v="healthcare"><i class="fa-solid fa-hospital"></i> Health</button>
+        <button class="opt" data-v="e_commerce"><i class="fa-solid fa-cart-shopping"></i> eCommerce</button>
+        <button class="opt" data-v="government"><i class="fa-solid fa-landmark"></i> Gov</button>
+        <button class="opt" data-v="energy"><i class="fa-solid fa-bolt"></i> Energy</button>
+      </div>
+    </div>
+
+    <div class="gen-field">
+      <label>Attacker Intent</label>
+      <div class="opts" id="int-opts">
+        <button class="opt active" data-v="credential_harvesting"><i class="fa-solid fa-key"></i> Cred Harvest</button>
+        <button class="opt" data-v="malware_deployment"><i class="fa-solid fa-virus"></i> Malware</button>
+        <button class="opt" data-v="lateral_movement"><i class="fa-solid fa-arrows-left-right"></i> Lateral</button>
+        <button class="opt" data-v="reconnaissance"><i class="fa-solid fa-magnifying-glass"></i> Recon</button>
+        <button class="opt" data-v="cryptomining"><i class="fa-solid fa-coins"></i> Mining</button>
+      </div>
+    </div>
+
+    <div class="gen-field">
+      <label>Sophistication Level</label>
+      <div class="soph-wrap">
+        <input type="range" id="soph" min="0" max="2" value="2" step="1" class="soph-range">
+        <div class="soph-labels"><span>Beginner</span><span>Bot</span><span>Advanced</span></div>
+      </div>
+    </div>
+
+    <button class="gen-btn" id="gen-btn" onclick="generate()">
+      <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Asset Package
+    </button>
+    <div class="gen-status" id="gen-status"></div>
+
+    <div class="asset-legend">
+      <div class="legend-ttl">Asset Types</div>
+      <div class="li"><span style="color:#ef4444"><i class="fa-solid fa-file-shield"></i></span> .env / Secrets file</div>
+      <div class="li"><span style="color:#f59e0b"><i class="fa-solid fa-envelope"></i></span> Corporate email thread</div>
+      <div class="li"><span style="color:#00d4ff"><i class="fa-solid fa-code"></i></span> Source code repository</div>
+      <div class="li"><span style="color:#8b5cf6"><i class="fa-solid fa-book"></i></span> Internal wiki / runbook</div>
+      <div class="li"><span style="color:#10b981"><i class="fa-solid fa-database"></i></span> Database schema dump</div>
+    </div>
+  </div>
+
+  <!-- Assets list -->
+  <div class="card">
+    <div class="ch"><i class="fa-solid fa-folder-open"></i> Generated Assets <span class="count-badge" id="asset-count"></span></div>
+    <div class="assets-list" id="assets-list">
+      <div class="preview-placeholder"><i class="fa-solid fa-wand-magic-sparkles" style="font-size:30px;color:rgba(139,92,246,.25)"></i>Generate a package to see assets here</div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="card">
+    <div class="ch"><i class="fa-solid fa-eye"></i> Content Preview <span class="preview-name" id="prev-name"></span></div>
+    <div class="preview-area" id="preview-area">
+      <div class="preview-placeholder"><i class="fa-solid fa-file-code" style="font-size:30px;color:rgba(139,92,246,.2)"></i>Click an asset to preview its generated content</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const AMETA={env_file:{icon:'fa-file-shield',c:'#ef4444',bg:'rgba(239,68,68,.12)'},email_thread:{icon:'fa-envelope',c:'#f59e0b',bg:'rgba(245,158,11,.12)'},code_repo:{icon:'fa-code',c:'#00d4ff',bg:'rgba(0,212,255,.12)'},wiki_page:{icon:'fa-book',c:'#8b5cf6',bg:'rgba(139,92,246,.12)'},db_schema:{icon:'fa-database',c:'#10b981',bg:'rgba(16,185,129,.12)'}};
+const SOPHS=['beginner','automated_bot','advanced_human'];
+let allAssets=[],selInd='financial_services',selInt='credential_harvesting',selSoph=2;
+
+document.addEventListener('DOMContentLoaded',()=>{
+  loadAssets();
+  document.querySelectorAll('#ind-opts .opt').forEach(b=>b.onclick=()=>{document.querySelectorAll('#ind-opts .opt').forEach(x=>x.classList.remove('active'));b.classList.add('active');selInd=b.dataset.v});
+  document.querySelectorAll('#int-opts .opt').forEach(b=>b.onclick=()=>{document.querySelectorAll('#int-opts .opt').forEach(x=>x.classList.remove('active'));b.classList.add('active');selInt=b.dataset.v});
+  document.getElementById('soph').oninput=e=>selSoph=parseInt(e.target.value);
+});
+
+async function loadAssets(){
+  try{const d=await(await fetch('/api/gadcf/assets')).json();allAssets=d.assets||[];renderAssets()}catch{allAssets=[];renderAssets()}
+  document.getElementById('kv-total').textContent=allAssets.length||'0';
+  const hasLLM=allAssets.some(a=>a.source==='llm');
+  const el=document.getElementById('kv-llm');el.textContent=hasLLM?'Ollama':'Templates';el.style.color=hasLLM?'#10b981':'#64748b';
+}
+
+async function generate(){
+  const btn=document.getElementById('gen-btn'),st=document.getElementById('gen-status');
+  btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Generating…';st.textContent='';st.style.color='var(--dim)';
+  try{
+    const r=await fetch('/api/gadcf/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({industry:selInd,intent:selInt,sophistication:SOPHS[selSoph]})});
+    const d=await r.json();
+    if(d.assets){allAssets=[...d.assets,...allAssets];renderAssets();selectAsset(d.assets[0]);document.getElementById('kv-total').textContent=allAssets.length;document.getElementById('asset-count').textContent=allAssets.length+' total';st.textContent='✓ '+d.count+' assets generated ('+((d.assets[0]?.source)||'template')+')';st.style.color='#10b981'}
+  }catch(e){st.textContent='✗ Generation failed';st.style.color='#ef4444'}
+  btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Asset Package';
+}
+
+function renderAssets(){
+  const el=document.getElementById('assets-list'),cnt=document.getElementById('asset-count');
+  cnt.textContent=allAssets.length+' total';
+  if(!allAssets.length){el.innerHTML='<div class="preview-placeholder"><i class="fa-solid fa-folder-open" style="font-size:28px;color:rgba(139,92,246,.2)"></i>No assets yet — generate a package</div>';return}
+  el.innerHTML='';
+  allAssets.slice(0,30).forEach(a=>{
+    const m=AMETA[a.asset_type]||{icon:'fa-file',c:'#64748b',bg:'rgba(100,116,139,.1)'};
+    const isL=a.source==='llm';
+    const card=document.createElement('div');card.className='asset-card';
+    card.innerHTML=`<div class="ai" style="background:${m.bg};color:${m.c}"><i class="fa-solid ${m.icon}"></i></div><div style="flex:1;min-width:0"><div class="an">${a.filename||a.asset_type}</div><div class="am">${(a.industry||'').replace(/_/g,' ')} · ${(a.attacker_intent||'').replace(/_/g,' ')}</div></div><span class="src-pill" style="background:${isL?'rgba(16,185,129,.15)':'rgba(100,116,139,.12)'};color:${isL?'#10b981':'#64748b'}">${isL?'LLM':'TMPL'}</span>`;
+    card.onclick=()=>selectAsset(a,card);
+    el.appendChild(card);
+  });
+}
+
+function selectAsset(a,card){
+  document.querySelectorAll('.asset-card').forEach(c=>c.classList.remove('sel'));
+  if(card)card.classList.add('sel');
+  document.getElementById('prev-name').textContent=a.filename||'';
+  const area=document.getElementById('preview-area');
+  area.innerHTML='';area.textContent=a.content||'(no content)';
+}
+</script>
+</body>
+</html>

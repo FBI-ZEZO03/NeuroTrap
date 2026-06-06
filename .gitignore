@@ -1,0 +1,26 @@
+# Office planning docs
+*.docx
+*.docx.bak
+*.pptx
+*.xlsx
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python (also covered per-subdir)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Secrets
+.env
+
+# SQLite fallback store
+*.db
+*.db-wal
+*.db-shm

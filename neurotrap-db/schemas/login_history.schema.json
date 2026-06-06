@@ -1,0 +1,31 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "login_history",
+    "description": "Authentication audit events. TTL-retained 365d for compliance. geo is embedded (owned, bounded).",
+    "required": ["user_ref", "ip", "success", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "user_ref": { "bsonType": "string", "pattern": "^usr_[0-9A-Z]{26}$", "description": "References users.user_id." },
+      "username_attempted": { "bsonType": "string", "description": "Raw username supplied (may not match a real user on failure)." },
+      "ip": { "bsonType": "string", "description": "Source IP (IPv4/IPv6)." },
+      "user_agent": { "bsonType": "string" },
+      "success": { "bsonType": "bool" },
+      "failure_reason": { "enum": ["bad_password", "no_such_user", "locked", "mfa_failed", "expired", null] },
+      "mfa_used": { "bsonType": "bool" },
+      "geo": {
+        "bsonType": "object",
+        "additionalProperties": false,
+        "properties": {
+          "country": { "bsonType": "string" },
+          "city": { "bsonType": "string" },
+          "lat": { "bsonType": "double", "minimum": -90, "maximum": 90 },
+          "lon": { "bsonType": "double", "minimum": -180, "maximum": 180 }
+        }
+      },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

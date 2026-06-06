@@ -1,0 +1,14 @@
+{
+  "_id": { "$oid": "6661a1b2c3d4e5f600000300" },
+  "profile_id": "dprof_01J9ZKM0N1P2Q3R4S5T6V7W8X9",
+  "name": "Advanced Human — Corporate Lure",
+  "description": "High-interaction corporate environment with fake sensitive data for advanced human actors.",
+  "target_tier": "advanced_human",
+  "target_intent": "credential_harvesting",
+  "layers": ["host", "service", "data", "credential", "document", "token"],
+  "template_refs": ["tmpl_01J9ZKN0P1Q2R3S4T5V6W7X8Y9"],
+  "interactivity": "high",
+  "is_active": true,
+  "created_at": { "$date": "2026-02-01T00:00:00Z" },
+  "updated_at": { "$date": "2026-05-20T00:00:00Z" }
+}

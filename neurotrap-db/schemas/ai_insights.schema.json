@@ -1,0 +1,29 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "ai_insights",
+    "description": "Predictive/ML insights: next-step prediction, threat predictions, campaign/anomaly/behaviour results. Scoped to a session, actor, or twin.",
+    "required": ["insight_id", "scope", "ai_confidence_score", "generated_at", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "insight_id": { "bsonType": "string", "pattern": "^ains_[0-9A-Z]{26}$" },
+      "scope": {
+        "bsonType": "object", "additionalProperties": false, "required": ["type", "ref"],
+        "properties": { "type": { "enum": ["session", "actor", "twin", "global"] }, "ref": { "bsonType": ["string", "null"], "description": "Business key of the scoped entity; null for global." } }
+      },
+      "predicted_next_attack_step": {
+        "bsonType": "object", "additionalProperties": false,
+        "properties": { "tactic": { "bsonType": "string" }, "technique_id": { "bsonType": "string" }, "probability": { "bsonType": "double", "minimum": 0, "maximum": 1 } }
+      },
+      "threat_predictions": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["label", "probability"], "properties": { "label": { "bsonType": "string" }, "probability": { "bsonType": "double", "minimum": 0, "maximum": 1 }, "horizon_hours": { "bsonType": "int", "minimum": 0 } } } },
+      "campaign_detection_results": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["campaign_ref", "score"], "properties": { "campaign_ref": { "bsonType": "string" }, "score": { "bsonType": "double", "minimum": 0, "maximum": 1 } } } },
+      "anomaly_detection_results": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["metric", "anomaly_score"], "properties": { "metric": { "bsonType": "string" }, "anomaly_score": { "bsonType": "double", "minimum": 0, "maximum": 1 }, "is_anomaly": { "bsonType": "bool" } } } },
+      "behavioral_predictions": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["metric", "predicted_value"], "properties": { "metric": { "bsonType": "string" }, "predicted_value": { "bsonType": "double" } } } },
+      "ai_confidence_score": { "bsonType": "double", "minimum": 0, "maximum": 1 },
+      "generated_at": { "bsonType": "date" },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

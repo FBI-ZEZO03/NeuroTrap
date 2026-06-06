@@ -1,0 +1,33 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "ai_analyst_outputs",
+    "description": "AI SOC Analyst outputs for a session, with a human review workflow. Multiple outputs per session allowed (each a distinct output_id). analyst_feedback[]/analyst_notes[] embedded.",
+    "required": ["output_id", "related_session", "review_status", "ai_confidence_score", "generated_at", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "output_id": { "bsonType": "string", "pattern": "^aout_[0-9A-Z]{26}$" },
+      "related_session": { "bsonType": "string", "description": "References attack_sessions.session_id." },
+      "related_actor": { "bsonType": ["string", "null"] },
+      "model": { "bsonType": "string", "description": "LLM identifier used, e.g. claude-haiku-4-5." },
+      "attack_explanation": { "bsonType": "string" },
+      "session_summary": { "bsonType": "string" },
+      "mitre_explanation": { "bsonType": "string" },
+      "risk_explanation": { "bsonType": "string" },
+      "explain_why": { "bsonType": "string", "description": "Rationale behind the risk/recommendation." },
+      "recommended_responses": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["action", "rationale"], "properties": { "action": { "enum": ["block", "redirect", "isolate", "tarpit", "monitor"] }, "rationale": { "bsonType": "string" }, "priority": { "enum": ["low", "medium", "high"] } } } },
+      "generated_insights": { "bsonType": "string" },
+      "executive_summary": { "bsonType": "string" },
+      "incident_report_ref": { "bsonType": ["string", "null"], "description": "References reports.report_id." },
+      "ai_confidence_score": { "bsonType": "double", "minimum": 0, "maximum": 1 },
+      "review_status": { "enum": ["generated", "reviewed", "approved", "rejected"] },
+      "reviewed_by": { "bsonType": ["string", "null"], "description": "users.user_id." },
+      "analyst_notes": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["ts", "author_ref", "note"], "properties": { "ts": { "bsonType": "date" }, "author_ref": { "bsonType": "string" }, "note": { "bsonType": "string" } } } },
+      "analyst_feedback": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["ts", "rating"], "properties": { "ts": { "bsonType": "date" }, "rating": { "enum": ["up", "down"] }, "comment": { "bsonType": "string" } } } },
+      "generated_at": { "bsonType": "date" },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

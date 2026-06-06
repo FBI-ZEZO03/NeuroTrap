@@ -1,0 +1,33 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "deception_effectiveness",
+    "description": "Engagement metrics + success scoring per environment/session. One doc per (environment, session) pairing. historical_effectiveness_trends[] embedded.",
+    "required": ["effectiveness_id", "environment_ref", "session_ref", "deception_success_score", "engagement_metrics", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "effectiveness_id": { "bsonType": "string", "pattern": "^deff_[0-9A-Z]{26}$" },
+      "environment_ref": { "bsonType": "string", "description": "References generated_environments.environment_id." },
+      "session_ref": { "bsonType": "string", "description": "References attack_sessions.session_id." },
+      "engagement_metrics": {
+        "bsonType": "object", "additionalProperties": false,
+        "required": ["session_duration", "time_spent_in_environment"],
+        "properties": {
+          "session_duration": { "bsonType": "double", "minimum": 0, "description": "Total session seconds." },
+          "time_spent_in_environment": { "bsonType": "double", "minimum": 0, "description": "Seconds inside the deception env." },
+          "commands_executed_count": { "bsonType": "int", "minimum": 0 },
+          "files_accessed_count": { "bsonType": "int", "minimum": 0 },
+          "credentials_attempted_count": { "bsonType": "int", "minimum": 0 },
+          "services_explored_count": { "bsonType": "int", "minimum": 0 },
+          "lateral_movement_attempts": { "bsonType": "int", "minimum": 0 }
+        }
+      },
+      "canary_trigger_events": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["token_ref", "ts"], "properties": { "token_ref": { "bsonType": "string" }, "ts": { "bsonType": "date" } } } },
+      "deception_success_score": { "bsonType": "double", "minimum": 0, "maximum": 100, "description": "Composite engagement success (see score registry)." },
+      "historical_effectiveness_trends": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["ts", "score"], "properties": { "ts": { "bsonType": "date" }, "score": { "bsonType": "double", "minimum": 0, "maximum": 100 } } } },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

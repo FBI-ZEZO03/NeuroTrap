@@ -1,0 +1,50 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "threat_actors",
+    "description": "Persistent per-source attacker profile. threat_history[] is embedded (bounded summary rows); historical_session_refs[] references attack_sessions for full detail.",
+    "required": ["actor_id", "primary_ip", "classification", "risk_score", "reputation_score", "first_seen", "last_seen", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "actor_id": { "bsonType": "string", "pattern": "^actor_[0-9A-Z]{26}$" },
+      "primary_ip": { "bsonType": "string" },
+      "known_ips": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "attacker_profile": {
+        "bsonType": "object", "additionalProperties": false,
+        "description": "Behavioural summary.",
+        "properties": {
+          "tier": { "enum": ["beginner", "automated_bot", "advanced_human"] },
+          "primary_intent": { "enum": ["reconnaissance", "credential_harvesting", "malware_deployment", "lateral_movement", "cryptomining", "bot_enrollment", "unknown"] },
+          "preferred_protocols": { "bsonType": "array", "items": { "enum": ["ssh", "telnet", "http", "https", "ftp", "smb", "rdp", "mysql", "mssql", "snmp", "vnc", "sip", "other"] } }
+        }
+      },
+      "classification": { "enum": ["scanner", "bruteforcer", "botnet", "apt", "researcher", "unknown"] },
+      "risk_score": { "bsonType": "double", "minimum": 0, "maximum": 100 },
+      "reputation_score": { "bsonType": "double", "minimum": 0, "maximum": 100, "description": "External maliciousness; 0 benign, 100 known-malicious." },
+      "country": { "bsonType": ["string", "null"] },
+      "asn": { "bsonType": ["int", "null"] },
+      "isp": { "bsonType": ["string", "null"] },
+      "session_count": { "bsonType": "int", "minimum": 0 },
+      "threat_history": {
+        "bsonType": "array",
+        "description": "Bounded rollup rows per session (embedded for fast profile render).",
+        "items": {
+          "bsonType": "object", "additionalProperties": false, "required": ["session_ref", "ts", "risk_score"],
+          "properties": {
+            "session_ref": { "bsonType": "string" },
+            "ts": { "bsonType": "date" },
+            "risk_score": { "bsonType": "double", "minimum": 0, "maximum": 100 },
+            "summary": { "bsonType": "string" }
+          }
+        }
+      },
+      "historical_session_refs": { "bsonType": "array", "items": { "bsonType": "string" }, "description": "References attack_sessions.session_id." },
+      "digital_twin_ref": { "bsonType": ["string", "null"] },
+      "first_seen": { "bsonType": "date" },
+      "last_seen": { "bsonType": "date" },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

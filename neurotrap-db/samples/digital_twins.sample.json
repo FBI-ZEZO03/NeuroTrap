@@ -1,0 +1,34 @@
+{
+  "_id": { "$oid": "6661a1b2c3d4e5f600000200" },
+  "digital_twin_id": "dt_01J9ZKC0D1E2F3G4H5J6K7L8M9",
+  "attacker_id": "actor_01J9ZKB0C1D2E3F4G5H6J7K8L9",
+  "behavioral_fingerprint": {
+    "hash": "bf_3a7f9c1e8d2b4051",
+    "feature_vector": [0.12, 0.88, 0.41, 0.93, 0.07],
+    "automation_score": 38.0,
+    "sophistication": 74.0
+  },
+  "confidence_score": 0.82,
+  "similarity_scores": [
+    { "digital_twin_ref": "dt_01J9ZKC0D1E2F3G4H5J6K7L8N0", "similarity_score": 0.91 }
+  ],
+  "historical_sessions": ["sess_01J9ZK9A0B1C2D3E4F5G6H7J8K"],
+  "preferred_tools": ["hydra", "wget", "busybox"],
+  "preferred_protocols": ["ssh", "http"],
+  "preferred_targets": ["ssh-gateway", "web-portal"],
+  "activity_patterns": { "avg_session_seconds": 128.4, "burstiness": 0.63 },
+  "operating_hours": [1, 2, 3, 22, 23],
+  "geographic_patterns": [{ "country": "DE", "weight": 0.7 }, { "country": "NL", "weight": 0.3 }],
+  "mitre_techniques_used": ["T1110", "T1105", "T1003.008"],
+  "risk_evolution": [
+    { "ts": { "$date": "2026-05-21T22:03:00Z" }, "risk_score": 55.0 },
+    { "ts": { "$date": "2026-06-06T03:14:02Z" }, "risk_score": 81.0 }
+  ],
+  "behavioral_trends": [{ "ts": { "$date": "2026-06-06T03:14:02Z" }, "metric": "commands_per_session", "value": 12.0 }],
+  "session_correlations": [{ "session_ref": "sess_01J9ZK9A0B1C2D3E4F5G6H7J8K", "correlation": 0.97 }],
+  "kill_chain": { "current_stage": "Command & Control", "progress": 0.71 },
+  "first_modeled": { "$date": "2026-05-21T22:10:00Z" },
+  "last_updated": { "$date": "2026-06-06T03:14:05Z" },
+  "created_at": { "$date": "2026-05-21T22:10:00Z" },
+  "updated_at": { "$date": "2026-06-06T03:14:05Z" }
+}

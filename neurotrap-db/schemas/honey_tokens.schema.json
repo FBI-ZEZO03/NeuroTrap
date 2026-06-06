@@ -1,0 +1,22 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "honey_tokens",
+    "description": "In-environment honey token (e.g. fake API key string, beacon URL). trigger_events[] embedded as bounded recent hits; references the environment it lives in.",
+    "required": ["token_id", "environment_ref", "token_type", "token_value", "triggered", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "token_id": { "bsonType": "string", "pattern": "^htok_[0-9A-Z]{26}$" },
+      "environment_ref": { "bsonType": "string", "description": "References generated_environments.environment_id." },
+      "token_type": { "enum": ["api_key", "url_beacon", "db_row", "registry_key", "env_var", "qr"] },
+      "token_value": { "bsonType": "string", "description": "The planted marker value the attacker may use." },
+      "planted_location": { "bsonType": "string" },
+      "triggered": { "bsonType": "bool" },
+      "trigger_count": { "bsonType": "int", "minimum": 0 },
+      "trigger_events": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["ts", "source_ip"], "properties": { "ts": { "bsonType": "date" }, "source_ip": { "bsonType": "string" }, "session_ref": { "bsonType": ["string", "null"] } } } },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "analyst_profiles",
+    "description": "Analyst-specific metadata, keyed 1:1 to a user via user_ref. workload is a live counter updated by assignment logic.",
+    "required": ["user_ref", "specialties", "shift", "workload", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "user_ref": { "bsonType": "string", "pattern": "^usr_[0-9A-Z]{26}$", "description": "References users.user_id (unique)." },
+      "display_name": { "bsonType": "string" },
+      "specialties": { "bsonType": "array", "items": { "enum": ["malware", "network", "web", "linux", "windows", "threat_intel", "deception", "forensics"] } },
+      "shift": { "enum": ["day", "swing", "night", "on_call"] },
+      "seniority": { "enum": ["junior", "mid", "senior", "lead"] },
+      "workload": {
+        "bsonType": "object",
+        "additionalProperties": false,
+        "required": ["open_cases", "max_cases"],
+        "properties": {
+          "open_cases": { "bsonType": "int", "minimum": 0 },
+          "max_cases": { "bsonType": "int", "minimum": 1 }
+        }
+      },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

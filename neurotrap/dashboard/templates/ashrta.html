@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ASHRTA — Adversarial Self-Hardening Red Team AI · NeuroTrap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#060810;--surface:#0d1123;--card:#111828;
+  --border:rgba(239,68,68,.15);--border-dim:rgba(255,255,255,.05);
+  --red:#ef4444;--amber:#f59e0b;--green:#10b981;--cyan:#00d4ff;--purple:#8b5cf6;
+  --text:#e2e8f0;--dim:#64748b;--muted:#334155;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+}
+html{scrollbar-gutter:stable}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.5;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:rgba(239,68,68,.25);border-radius:4px}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(239,68,68,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(239,68,68,.025) 1px,transparent 1px);background-size:48px 48px}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 40% at 50% 0%,rgba(239,68,68,.05) 0%,transparent 70%)}
+header,section,.body,.full{position:relative;z-index:1}
+
+/* header */
+.ph{height:62px;display:flex;align-items:center;gap:16px;padding:0 28px;background:rgba(6,8,16,.92);border-bottom:1px solid var(--border);backdrop-filter:blur(16px);position:sticky;top:0;z-index:100}
+.ph::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--red),transparent);opacity:.6}
+.back{display:flex;align-items:center;gap:7px;color:var(--dim);text-decoration:none;font-size:11px;font-weight:500;padding:5px 12px;border:1px solid var(--border-dim);border-radius:5px;background:rgba(255,255,255,.04);transition:all .2s;white-space:nowrap}
+.back:hover{color:var(--red);border-color:rgba(239,68,68,.4)}
+.hbrand{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.hicon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:var(--red);flex-shrink:0;box-shadow:0 0 20px rgba(239,68,68,.2)}
+.htitle{font-size:14px;font-weight:700}
+.hsub{font-size:10px;color:var(--dim);margin-top:1px}
+.hright{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.run-btn{display:flex;align-items:center;gap:8px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#fca5a5;padding:7px 16px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;transition:all .2s}
+.run-btn:hover{background:rgba(239,68,68,.28);box-shadow:0 0 16px rgba(239,68,68,.2)}
+.run-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* kpi */
+.krow{display:flex;gap:1px;background:rgba(255,255,255,.04);border-bottom:1px solid var(--border)}
+.kpi{flex:1;background:var(--surface);padding:14px 20px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;cursor:default;transition:background .2s}
+.kpi:hover{background:var(--card)}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;height:2px;width:50%;background:var(--kc,var(--red));opacity:.5;border-radius:0 2px 2px 0}
+.ki{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--kc,var(--red));background:color-mix(in srgb,var(--kc,var(--red)) 12%,transparent);border:1px solid color-mix(in srgb,var(--kc,var(--red)) 20%,transparent);flex-shrink:0}
+.kv{font-size:24px;font-weight:700;color:var(--kc,var(--red));font-family:var(--mono);line-height:1}
+.kl{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:3px}
+
+/* layout */
+.body{display:grid;grid-template-columns:300px 1fr 1fr;gap:16px;padding:20px 28px}
+.card{background:rgba(13,17,35,.88);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.ch{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);padding-bottom:12px;border-bottom:1px solid var(--border-dim)}
+
+/* gauge */
+.gauge-block{display:flex;align-items:center;gap:20px;padding:14px;background:rgba(0,0,0,.3);border:1px solid var(--border-dim);border-radius:8px}
+.gauge-wrap{position:relative;flex-shrink:0}
+.gauge-center{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none}
+.gauge-big{font-size:28px;font-weight:800;font-family:var(--mono);line-height:1}
+.gauge-sub{font-size:10px;color:var(--dim)}
+.meta{display:flex;flex-direction:column;gap:8px;flex:1}
+.meta-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-family:var(--mono)}
+.meta-l{color:var(--dim)}
+.meta-v{font-weight:700}
+
+/* trend */
+.trend-bars{display:flex;gap:3px;align-items:flex-end;height:60px;margin:6px 0 3px}
+.tbar{flex:1;border-radius:3px 3px 0 0;min-height:4px;cursor:default;transition:opacity .2s;position:relative}
+.tbar:hover{opacity:.8}
+.tbar:hover::after{content:attr(data-tip);position:absolute;bottom:105%;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border-dim);padding:3px 7px;border-radius:4px;font-size:9px;font-family:var(--mono);white-space:nowrap;color:var(--text)}
+.trend-axis{font-size:9px;color:var(--muted);font-family:var(--mono);display:flex;justify-content:space-between}
+
+/* checks */
+.checks-list{display:flex;flex-direction:column;gap:5px;overflow-y:auto;max-height:520px;padding-right:4px}
+.chk{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--card);border:1px solid var(--border-dim);border-radius:7px}
+.chk.pass{border-left:3px solid var(--green)}
+.chk.fail{border-left:3px solid var(--red)}
+.chk-ico{width:20px;flex-shrink:0;font-size:13px;margin-top:1px}
+.chk-body{flex:1}
+.chk-top{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.chk-name{font-weight:600;font-size:12px}
+.sev{font-size:9px;font-weight:800;padding:1px 6px;border-radius:3px;text-transform:uppercase}
+.sev.critical{background:rgba(239,68,68,.2);color:#ef4444}
+.sev.high{background:rgba(245,158,11,.2);color:#f59e0b}
+.sev.medium{background:rgba(139,92,246,.2);color:#8b5cf6}
+.sev.low{background:rgba(100,116,139,.15);color:#64748b}
+.conf{font-size:9px;color:var(--muted);font-family:var(--mono);margin-left:auto}
+.chk-desc{font-size:10.5px;color:var(--dim);line-height:1.5}
+.chk-rec{font-size:10px;color:var(--green);margin-top:4px;font-family:var(--mono)}
+
+/* patches */
+.patches-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:520px;padding-right:4px}
+.patch-card{background:var(--card);border:1px solid var(--border-dim);border-radius:8px;padding:12px 14px;transition:border-color .2s}
+.patch-card:hover{border-color:rgba(16,185,129,.3)}
+.patch-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.patch-name{font-weight:600;font-size:12px;flex:1}
+.patch-target{font-size:9px;font-family:var(--mono);color:var(--dim);background:var(--bg);border:1px solid var(--border-dim);padding:2px 7px;border-radius:3px}
+.patch-diff{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.diff-box{background:var(--bg);border-radius:6px;padding:8px 10px;font-family:var(--mono);font-size:10px;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diff-lbl{font-size:9px;color:var(--muted);margin-bottom:3px}
+.diff-box.before{border-left:2px solid rgba(239,68,68,.5);color:#fca5a5}
+.diff-box.after{border-left:2px solid rgba(16,185,129,.5);color:#6ee7b7}
+
+/* GAN diagram */
+.full{padding:0 28px 28px}
+.gan{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:12px 0 16px}
+.gbox{flex:1;min-width:160px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 14px;border-radius:10px;border:1px solid;text-align:center}
+.gbox-ico{font-size:24px;margin-bottom:2px}
+.gbox-title{font-weight:700;font-size:13px}
+.gbox-desc{font-size:10.5px;color:var(--dim);line-height:1.5}
+.g-red{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.35)}.g-red .gbox-ico{color:var(--red)}
+.g-amber{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.35)}.g-amber .gbox-ico{color:var(--amber)}
+.g-green{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.35)}.g-green .gbox-ico{color:var(--green)}
+.g-purple{background:rgba(139,92,246,.08);border-color:rgba(139,92,246,.35)}.g-purple .gbox-ico{color:var(--purple)}
+.garrow{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 14px;color:var(--muted);font-size:20px;flex-shrink:0;gap:4px}
+.garrow-lbl{font-size:9px;font-family:var(--mono);white-space:nowrap;color:var(--muted)}
+.checks-ref{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:14px;border-top:1px solid var(--border-dim);padding-top:14px}
+.cref{display:flex;align-items:flex-start;gap:10px;font-size:11.5px;color:var(--dim);line-height:1.5;padding:8px;background:var(--card);border-radius:6px}
+.cnum{width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,.15);color:var(--red);font-size:9px;font-weight:800;font-family:var(--mono)}
+</style>
+</head>
+<body>
+
+<header class="ph">
+  <a href="/" class="back"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+  <div class="hbrand">
+    <div class="hicon"><i class="fa-solid fa-robot"></i></div>
+    <div>
+      <div class="htitle">Adversarial Self-Hardening Red Team AI</div>
+      <div class="hsub">IDEA 04 · A GAN-inspired system that attacks itself — to become impossible to fool · Runs every 6 hours, zero human involvement</div>
+    </div>
+  </div>
+  <div class="hright">
+    <span style="font-size:11px;font-weight:600;color:#f59e0b;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Medium</span>
+    <button class="run-btn" id="run-btn" onclick="runCycle()"><i class="fa-solid fa-play"></i> Run Red Team Cycle</button>
+  </div>
+</header>
+
+<section class="krow">
+  <div class="kpi" style="--kc:#ef4444"><div class="ki"><i class="fa-solid fa-shield-halved"></i></div><div><div class="kv" id="kv-score">—</div><div class="kl">Hardening Score</div></div></div>
+  <div class="kpi" style="--kc:#10b981"><div class="ki"><i class="fa-solid fa-list-check"></i></div><div><div class="kv" id="kv-passed" style="color:#10b981">—</div><div class="kl">Checks Passed</div></div></div>
+  <div class="kpi" style="--kc:#f59e0b"><div class="ki"><i class="fa-solid fa-triangle-exclamation"></i></div><div><div class="kv" id="kv-crit" style="color:#f59e0b">—</div><div class="kl">Critical Weaknesses</div></div></div>
+  <div class="kpi" style="--kc:#8b5cf6"><div class="ki"><i class="fa-solid fa-wrench"></i></div><div><div class="kv" id="kv-patches" style="color:#8b5cf6">—</div><div class="kl">Patches Applied</div></div></div>
+</section>
+
+<div class="body">
+
+  <!-- Score panel -->
+  <div class="card" style="align-self:start">
+    <div class="ch"><i class="fa-solid fa-gauge-high" style="color:var(--red)"></i> Hardening Score</div>
+    <div class="gauge-block">
+      <div class="gauge-wrap">
+        <canvas id="gauge" width="180" height="100"></canvas>
+        <div class="gauge-center">
+          <div class="gauge-big" id="gauge-val">—</div>
+          <div class="gauge-sub">/ 100</div>
+        </div>
+      </div>
+      <div class="meta" id="score-meta"></div>
+    </div>
+
+    <div style="font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Score Trend</div>
+    <div class="trend-bars" id="trend-bars"></div>
+    <div class="trend-axis"><span>Oldest</span><span>Latest</span></div>
+  </div>
+
+  <!-- Checks -->
+  <div class="card">
+    <div class="ch"><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--red)"></i> Detection Checks <span id="checks-sum" style="margin-left:auto;font-size:10px;color:var(--dim);text-transform:none;letter-spacing:0;font-weight:400"></span></div>
+    <div class="checks-list" id="checks-list">
+      <div style="color:var(--muted);text-align:center;padding:30px;font-size:12px">Run a cycle to see check results</div>
+    </div>
+  </div>
+
+  <!-- Patches -->
+  <div class="card">
+    <div class="ch"><i class="fa-solid fa-wrench" style="color:var(--green)"></i> Applied Patches</div>
+    <div class="patches-list" id="patches-list">
+      <div style="color:var(--muted);text-align:center;padding:30px;font-size:12px">No patches yet</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- GAN diagram -->
+<div class="full">
+  <div class="card">
+    <div class="ch"><i class="fa-solid fa-diagram-project" style="color:var(--red)"></i> GAN-Inspired Self-Hardening Loop — How ASHRTA Works</div>
+
+    <div class="gan">
+      <div class="gbox g-red">
+        <div class="gbox-ico"><i class="fa-solid fa-robot"></i></div>
+        <div class="gbox-title">Red Agent</div>
+        <div class="gbox-desc">Automated attacker using nmap, Hydra, and custom probes. Attempts to detect the honeypot using 10 real-world heuristics.</div>
+      </div>
+      <div class="garrow"><i class="fa-solid fa-arrow-right"></i><div class="garrow-lbl">Report</div></div>
+      <div class="gbox g-amber">
+        <div class="gbox-ico"><i class="fa-solid fa-clipboard-list"></i></div>
+        <div class="gbox-title">Evaluator</div>
+        <div class="gbox-desc">Logs every detection success as a honeypot weakness. Scores per-check confidence and severity level.</div>
+      </div>
+      <div class="garrow"><i class="fa-solid fa-arrow-right"></i><div class="garrow-lbl">Weaknesses</div></div>
+      <div class="gbox g-green">
+        <div class="gbox-ico"><i class="fa-solid fa-wrench"></i></div>
+        <div class="gbox-title">Optimizer</div>
+        <div class="gbox-desc">Auto-generates config patches per weakness. Applies to Cowrie cfg, honeyfs, OS fingerprints, and network stack.</div>
+      </div>
+      <div class="garrow"><i class="fa-solid fa-arrow-right"></i><div class="garrow-lbl">Verify &amp; Loop</div></div>
+      <div class="gbox g-purple">
+        <div class="gbox-ico"><i class="fa-solid fa-shield"></i></div>
+        <div class="gbox-title">Hardened Honeypot</div>
+        <div class="gbox-desc">Each cycle the honeypot becomes more convincing. Runs every 6 hours automatically with zero human involvement.</div>
+      </div>
+    </div>
+
+    <div class="checks-ref">
+      <div class="cref"><div class="cnum">01</div><div><b>Timing Analysis</b> — Response jitter detection (honeypots add consistent latency patterns)</div></div>
+      <div class="cref"><div class="cnum">02</div><div><b>SSH Banner Fingerprint</b> — Known Cowrie version strings vs current OpenSSH releases</div></div>
+      <div class="cref"><div class="cnum">03</div><div><b>OS Fingerprint Consistency</b> — Kernel version must match the declared OS version exactly</div></div>
+      <div class="cref"><div class="cnum">04</div><div><b>Filesystem Completeness</b> — Real systems have 50K+ files; default Cowrie has ~200</div></div>
+      <div class="cref"><div class="cnum">05</div><div><b>Process Tree Plausibility</b> — Real servers run 100–300 processes; honeypots default to &lt;20</div></div>
+      <div class="cref"><div class="cnum">06</div><div><b>Network Stack Fingerprint</b> — TCP window size 65535 is a well-known Cowrie fingerprint</div></div>
+      <div class="cref"><div class="cnum">07</div><div><b>Service Response Behavior</b> — Exact error messages match known Cowrie signatures</div></div>
+      <div class="cref"><div class="cnum">08</div><div><b>CPU / Memory Artifacts</b> — Perfect 0.00 load average on a "busy" production server</div></div>
+      <div class="cref"><div class="cnum">09</div><div><b>Uptime Consistency</b> — Very recent boot time is unusual for production infrastructure</div></div>
+      <div class="cref"><div class="cnum">10</div><div><b>Error Message Authenticity</b> — Custom vs default Cowrie error message patterns</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded',loadAll);
+async function loadAll(){await Promise.allSettled([loadReports(),loadPatches()])}
+
+async function loadReports(){
+  try{const d=await(await fetch('/api/ashrta/reports')).json();const r=d.reports||[];if(r.length){updateKPIs(r[0]);drawGauge(r[0].hardening_score||0);renderMeta(r[0]);renderTrend(r)}
+  }catch(e){console.error(e)}
+}
+
+async function loadPatches(){
+  try{const d=await(await fetch('/api/ashrta/patches')).json();renderPatches(d.patches||[])}catch{}
+}
+
+function updateKPIs(r){
+  const s=r.hardening_score||0;
+  document.getElementById('kv-score').textContent=s.toFixed(0)+'%';
+  document.getElementById('kv-score').style.color=scolor(s);
+  document.getElementById('kv-passed').textContent=`${r.checks_passed||0}/${r.checks_total||10}`;
+  document.getElementById('kv-crit').textContent=r.critical_weaknesses||0;
+  document.getElementById('kv-patches').textContent=r.patches_applied||0;
+}
+
+function scolor(s){return s>=85?'#10b981':s>=70?'#f59e0b':'#ef4444'}
+
+function drawGauge(score){
+  const c=document.getElementById('gauge'),ctx=c.getContext('2d'),dpr=window.devicePixelRatio||1;
+  c.width=180*dpr;c.height=100*dpr;c.style.width='180px';c.style.height='100px';ctx.scale(dpr,dpr);
+  const cx=90,cy=92,r=72;
+  ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,2*Math.PI);ctx.lineWidth=14;ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineCap='round';ctx.stroke();
+  if(score>0){
+    const col=scolor(score),glow=score>=85?'rgba(16,185,129,.4)':score>=70?'rgba(245,158,11,.4)':'rgba(239,68,68,.4)';
+    ctx.shadowBlur=12;ctx.shadowColor=glow;
+    ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,Math.PI+(score/100)*Math.PI);ctx.lineWidth=14;ctx.strokeStyle=col;ctx.lineCap='round';ctx.stroke();
+    ctx.shadowBlur=0;
+    for(let i=0;i<=10;i++){const a=Math.PI+(i/10)*Math.PI,x1=cx+(r-18)*Math.cos(a),y1=cy+(r-18)*Math.sin(a),x2=cx+(r-24)*Math.cos(a),y2=cy+(r-24)*Math.sin(a);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=1.5;ctx.stroke()}
+  }
+  const val=document.getElementById('gauge-val');val.textContent=score.toFixed(0)+'%';val.style.color=scolor(score);
+}
+
+function renderMeta(r){
+  const el=document.getElementById('score-meta');
+  const rows=[['Checks',''+r.checks_passed+'/'+r.checks_total,r.checks_passed>=(r.checks_total||10)?'#10b981':'#f59e0b'],['Critical',''+r.critical_weaknesses,(r.critical_weaknesses||0)?'#ef4444':'#10b981'],['Patches Applied',''+r.patches_applied,'#8b5cf6'],['Report ID',r.report_id||'—','var(--dim)']];
+  el.innerHTML=rows.map(([l,v,c])=>`<div class="meta-row"><span class="meta-l">${l}</span><span class="meta-v" style="color:${c}">${v}</span></div>`).join('');
+}
+
+function renderTrend(reports){
+  const el=document.getElementById('trend-bars');el.innerHTML='';
+  [...reports].reverse().forEach(r=>{
+    const s=r.hardening_score||0,col=scolor(s);
+    const b=document.createElement('div');b.className='tbar';
+    b.style.height=Math.max((s/100)*60,3)+'px';b.style.background=col;
+    b.dataset.tip=s.toFixed(0)+'%'+(r.timestamp?' — '+ts(r.timestamp):'');
+    el.appendChild(b);
+  });
+}
+
+async function runCycle(){
+  const btn=document.getElementById('run-btn');
+  btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Running…';
+  try{
+    const d=await(await fetch('/api/ashrta/run',{method:'POST'})).json();
+    updateKPIs(d);drawGauge(d.hardening_score||0);renderMeta(d);
+    if(d.full_results)renderChecks(d.full_results);
+    await loadAll();
+  }catch(e){console.error(e)}
+  btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-play"></i> Run Red Team Cycle';
+}
+
+function renderChecks(results){
+  const el=document.getElementById('checks-list'),sum=document.getElementById('checks-sum');
+  const passed=results.filter(r=>r.passed).length;
+  sum.textContent=passed+'/'+results.length+' passed';el.innerHTML='';
+  results.forEach(r=>{
+    const div=document.createElement('div');div.className='chk '+(r.passed?'pass':'fail');
+    div.innerHTML=`<div class="chk-ico"><i class="fa-solid ${r.passed?'fa-check':'fa-xmark'}" style="color:${r.passed?'#10b981':'#ef4444'}"></i></div><div class="chk-body"><div class="chk-top"><span class="chk-name">${(r.check_name||'').replace(/_/g,' ')}</span><span class="sev ${r.severity}">${r.severity}</span><span class="conf">${((r.confidence||0)*100).toFixed(0)}% conf</span></div><div class="chk-desc">${r.description||''}</div>${!r.passed&&r.recommendation?`<div class="chk-rec"><i class="fa-solid fa-wrench" style="margin-right:4px"></i>${r.recommendation}</div>`:''}</div>`;
+    el.appendChild(div);
+  });
+}
+
+function renderPatches(patches){
+  const el=document.getElementById('patches-list');
+  if(!patches.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:30px;font-size:12px">No patches yet — run a cycle first</div>';return}
+  el.innerHTML='';
+  patches.forEach(p=>{
+    const sc={critical:'#ef4444',high:'#f59e0b',medium:'#8b5cf6',low:'#64748b'}[p.severity]||'#64748b';
+    const card=document.createElement('div');card.className='patch-card';
+    card.innerHTML=`<div class="patch-top"><i class="fa-solid fa-wrench" style="color:#10b981;font-size:11px"></i><span class="patch-name">${(p.weakness||'').replace(/_/g,' ')}</span><span style="font-size:9px;font-weight:800;color:${sc};text-transform:uppercase;letter-spacing:1px">${p.severity}</span><span class="patch-target">${p.config_target||''}</span><span style="margin-left:auto;color:#10b981;font-size:10px"><i class="fa-solid fa-check"></i> Applied</span></div><div class="patch-diff"><div><div class="diff-lbl">Before</div><div class="diff-box before">${p.before||''}</div></div><div><div class="diff-lbl">After</div><div class="diff-box after">${p.after||''}</div></div></div>`;
+    el.appendChild(card);
+  });
+}
+
+function ts(t){if(!t)return'—';const s=Math.floor(Date.now()/1000-t);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago'}
+</script>
+</body>
+</html>

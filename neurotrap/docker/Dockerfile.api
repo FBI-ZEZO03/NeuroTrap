@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements/api.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ /app/src/
+COPY dashboard/ /app/dashboard/
+
+ENV PYTHONPATH=/app
+EXPOSE 5000
+
+CMD ["python", "-m", "src.api.app"]

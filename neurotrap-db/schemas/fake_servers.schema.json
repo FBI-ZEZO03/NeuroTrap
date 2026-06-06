@@ -1,0 +1,24 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "fake_servers",
+    "description": "Decoy server defined inside a generated environment. Referenced by generated_environments.server_refs.",
+    "required": ["server_id", "environment_ref", "hostname", "os_banner", "services", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "server_id": { "bsonType": "string", "pattern": "^fsrv_[0-9A-Z]{26}$" },
+      "environment_ref": { "bsonType": "string", "description": "References generated_environments.environment_id." },
+      "hostname": { "bsonType": "string" },
+      "ip": { "bsonType": "string" },
+      "os_banner": { "bsonType": "string" },
+      "role": { "enum": ["jump_host", "web", "db", "file", "domain_controller", "workstation", "generic"] },
+      "services": {
+        "bsonType": "array", "minItems": 1,
+        "items": { "bsonType": "object", "additionalProperties": false, "required": ["protocol", "port"], "properties": { "protocol": { "enum": ["ssh", "http", "https", "ftp", "smb", "mysql", "mssql", "rdp"] }, "port": { "bsonType": "int", "minimum": 1, "maximum": 65535 }, "banner": { "bsonType": "string" } } }
+      },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

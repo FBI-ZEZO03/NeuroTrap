@@ -1,0 +1,46 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "digital_twins",
+    "description": "Living behavioural replica of an attacker for cross-session tracking, similarity analysis, and long-term evolution. References threat_actors and attack_sessions; behavioural arrays embedded as bounded trend rows.",
+    "required": ["digital_twin_id", "attacker_id", "behavioral_fingerprint", "confidence_score", "first_modeled", "last_updated", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "digital_twin_id": { "bsonType": "string", "pattern": "^dt_[0-9A-Z]{26}$" },
+      "attacker_id": { "bsonType": "string", "pattern": "^actor_[0-9A-Z]{26}$", "description": "References threat_actors.actor_id (1:1)." },
+      "behavioral_fingerprint": {
+        "bsonType": "object", "additionalProperties": false,
+        "required": ["hash"],
+        "properties": {
+          "hash": { "bsonType": "string", "description": "Stable fingerprint hash for fast similarity bucketing." },
+          "feature_vector": { "bsonType": "array", "items": { "bsonType": "double" }, "description": "Embedding used for similarity_score." },
+          "automation_score": { "bsonType": "double", "minimum": 0, "maximum": 100 },
+          "sophistication": { "bsonType": "double", "minimum": 0, "maximum": 100 }
+        }
+      },
+      "confidence_score": { "bsonType": "double", "minimum": 0, "maximum": 1, "description": "Model confidence in the twin." },
+      "similarity_scores": {
+        "bsonType": "array",
+        "description": "Nearest twins by behaviour.",
+        "items": { "bsonType": "object", "additionalProperties": false, "required": ["digital_twin_ref", "similarity_score"], "properties": { "digital_twin_ref": { "bsonType": "string" }, "similarity_score": { "bsonType": "double", "minimum": 0, "maximum": 1 } } }
+      },
+      "historical_sessions": { "bsonType": "array", "items": { "bsonType": "string" }, "description": "References attack_sessions.session_id." },
+      "preferred_tools": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "preferred_protocols": { "bsonType": "array", "items": { "enum": ["ssh", "telnet", "http", "https", "ftp", "smb", "rdp", "mysql", "mssql", "snmp", "vnc", "sip", "other"] } },
+      "preferred_targets": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "activity_patterns": { "bsonType": "object", "description": "Free-form pattern summary (open shape).", "properties": { "avg_session_seconds": { "bsonType": "double" }, "burstiness": { "bsonType": "double" } } },
+      "operating_hours": { "bsonType": "array", "items": { "bsonType": "int", "minimum": 0, "maximum": 23 }, "description": "UTC hours of observed activity." },
+      "geographic_patterns": { "bsonType": "array", "items": { "bsonType": "object", "properties": { "country": { "bsonType": "string" }, "weight": { "bsonType": "double", "minimum": 0, "maximum": 1 } } } },
+      "mitre_techniques_used": { "bsonType": "array", "items": { "bsonType": "string", "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$" } },
+      "risk_evolution": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["ts", "risk_score"], "properties": { "ts": { "bsonType": "date" }, "risk_score": { "bsonType": "double", "minimum": 0, "maximum": 100 } } } },
+      "behavioral_trends": { "bsonType": "array", "items": { "bsonType": "object", "properties": { "ts": { "bsonType": "date" }, "metric": { "bsonType": "string" }, "value": { "bsonType": "double" } } } },
+      "session_correlations": { "bsonType": "array", "items": { "bsonType": "object", "properties": { "session_ref": { "bsonType": "string" }, "correlation": { "bsonType": "double", "minimum": 0, "maximum": 1 } } } },
+      "kill_chain": { "bsonType": "object", "properties": { "current_stage": { "bsonType": "string" }, "progress": { "bsonType": "double", "minimum": 0, "maximum": 1 } } },
+      "first_modeled": { "bsonType": "date" },
+      "last_updated": { "bsonType": "date" },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

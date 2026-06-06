@@ -1,0 +1,34 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "reports",
+    "description": "Generated reports (daily/weekly/incident/executive). generated_pdf_ref points to object storage; report_metadata embedded.",
+    "required": ["report_id", "report_type", "title", "period_start", "period_end", "status", "generated_at", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "report_id": { "bsonType": "string", "pattern": "^rpt_[0-9A-Z]{26}$" },
+      "report_type": { "enum": ["daily", "weekly", "incident", "executive"] },
+      "title": { "bsonType": "string" },
+      "period_start": { "bsonType": "date" },
+      "period_end": { "bsonType": "date" },
+      "status": { "enum": ["queued", "generating", "ready", "failed"] },
+      "generated_by": { "bsonType": ["string", "null"], "description": "users.user_id or 'system'." },
+      "generated_pdf_ref": { "bsonType": ["string", "null"], "description": "S3/object-store key for the rendered PDF." },
+      "incident_session_refs": { "bsonType": "array", "items": { "bsonType": "string" }, "description": "For incident reports: attack_sessions.session_id list." },
+      "report_metadata": {
+        "bsonType": "object", "additionalProperties": false,
+        "properties": {
+          "total_sessions": { "bsonType": "int", "minimum": 0 },
+          "unique_actors": { "bsonType": "int", "minimum": 0 },
+          "critical_alerts": { "bsonType": "int", "minimum": 0 },
+          "top_techniques": { "bsonType": "array", "items": { "bsonType": "string" } },
+          "deception_success_avg": { "bsonType": "double", "minimum": 0, "maximum": 100 }
+        }
+      },
+      "generated_at": { "bsonType": "date" },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

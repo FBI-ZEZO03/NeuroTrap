@@ -1,0 +1,16 @@
+# OpenCanary — Thinkst's maintained, Python 3, low-interaction multi-service
+# honeypot. Replaces the unmaintained (Python 2, EOL 2017) Honeyd.
+FROM python:3.11-slim
+
+# scapy needs libpcap; snmp/rdp modules need build basics.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpcap-dev gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir opencanary scapy
+
+# Log directory (mounted as a volume in docker-compose).
+RUN mkdir -p /var/tmp/opencanary
+
+# Config is mounted read-only at /root/.opencanary.conf by docker-compose.
+CMD ["opencanaryd", "--dev", "--uid=root", "--gid=root"]

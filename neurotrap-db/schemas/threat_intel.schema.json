@@ -1,0 +1,26 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "threat_intel",
+    "description": "Enrichment cache keyed by indicator (IP/domain/hash). Provider blocks embedded verbatim; refreshed on expiry. validationAction is 'warn' (partial third-party data tolerated).",
+    "required": ["indicator", "indicator_type", "reputation_score", "fetched_at", "expires_at", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "indicator": { "bsonType": "string", "description": "The IP/domain/hash this enrichment is keyed on (unique)." },
+      "indicator_type": { "enum": ["ipv4", "ipv6", "domain", "url", "sha256", "md5"] },
+      "reputation_score": { "bsonType": "double", "minimum": 0, "maximum": 100, "description": "Aggregated maliciousness 0–100." },
+      "virustotal": { "bsonType": "object", "description": "VT response subset (open shape).", "properties": { "malicious": { "bsonType": "int" }, "suspicious": { "bsonType": "int" }, "harmless": { "bsonType": "int" }, "last_analysis_date": { "bsonType": ["date", "null"] } } },
+      "abuseipdb": { "bsonType": "object", "properties": { "abuse_confidence_score": { "bsonType": "int", "minimum": 0, "maximum": 100 }, "total_reports": { "bsonType": "int" }, "country_code": { "bsonType": "string" } } },
+      "shodan": { "bsonType": "object", "properties": { "open_ports": { "bsonType": "array", "items": { "bsonType": "int" } }, "tags": { "bsonType": "array", "items": { "bsonType": "string" } }, "org": { "bsonType": "string" } } },
+      "otx": { "bsonType": "object", "properties": { "pulse_count": { "bsonType": "int" }, "pulse_names": { "bsonType": "array", "items": { "bsonType": "string" } } } },
+      "geoip": { "bsonType": "object", "properties": { "country": { "bsonType": "string" }, "city": { "bsonType": "string" }, "asn": { "bsonType": "int" }, "lat": { "bsonType": "double" }, "lon": { "bsonType": "double" } } },
+      "threat_feeds": { "bsonType": "array", "items": { "bsonType": "object", "properties": { "feed": { "bsonType": "string" }, "listed": { "bsonType": "bool" }, "category": { "bsonType": "string" } } } },
+      "enrichment_history": { "bsonType": "array", "items": { "bsonType": "object", "properties": { "ts": { "bsonType": "date" }, "provider": { "bsonType": "string" }, "reputation_score": { "bsonType": "double" } } } },
+      "fetched_at": { "bsonType": "date" },
+      "expires_at": { "bsonType": "date", "description": "Cache expiry; TTL index drives refresh." },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

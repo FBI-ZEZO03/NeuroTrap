@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements/honeypots.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ /app/src/
+
+ENV PYTHONPATH=/app
+# In-container privileged ports for the native honeypots.
+ENV HP_SSH_PORT=22 \
+    HP_TELNET_PORT=23 \
+    HP_FTP_PORT=21 \
+    HP_HTTP_PORT=80 \
+    HONEYPOTS_ENABLED=ssh,http,ftp,telnet
+
+CMD ["python", "-m", "src.honeypots.main"]

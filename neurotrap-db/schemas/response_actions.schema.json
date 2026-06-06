@@ -1,0 +1,34 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "response_actions",
+    "description": "Autonomous response decisions per session. decision_logs[]/response_history[] embedded for full audit trail. Action matrix thresholds: 40 slow/redirect, 70 isolate, 90 block.",
+    "required": ["action_id", "related_session", "threat_score", "risk_level", "action_type", "automated_decision", "status", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "action_id": { "bsonType": "string", "pattern": "^act_[0-9A-Z]{26}$" },
+      "related_session": { "bsonType": "string", "description": "References attack_sessions.session_id." },
+      "related_actor": { "bsonType": ["string", "null"] },
+      "threat_score": { "bsonType": "double", "minimum": 0, "maximum": 100 },
+      "risk_level": { "enum": ["low", "medium", "high", "critical"] },
+      "action_type": { "enum": ["block", "redirect", "isolate", "tarpit", "monitor"] },
+      "automated_decision": { "bsonType": "bool", "description": "true if engine-decided, false if analyst-overridden." },
+      "decided_by": { "bsonType": ["string", "null"], "description": "users.user_id when manual; null when automated." },
+      "target_ip": { "bsonType": "string" },
+      "status": { "enum": ["pending", "applied", "failed", "reverted", "expired"] },
+      "applied_at": { "bsonType": ["date", "null"] },
+      "expires_at": { "bsonType": ["date", "null"] },
+      "decision_logs": {
+        "bsonType": "array",
+        "items": { "bsonType": "object", "additionalProperties": false, "required": ["ts", "message"], "properties": { "ts": { "bsonType": "date" }, "message": { "bsonType": "string" }, "rule": { "bsonType": "string" } } }
+      },
+      "response_history": {
+        "bsonType": "array",
+        "items": { "bsonType": "object", "additionalProperties": false, "required": ["ts", "status"], "properties": { "ts": { "bsonType": "date" }, "status": { "enum": ["pending", "applied", "failed", "reverted", "expired"] }, "note": { "bsonType": "string" } } }
+      },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

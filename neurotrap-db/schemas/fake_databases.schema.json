@@ -1,0 +1,23 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "fake_databases",
+    "description": "Decoy database with fabricated but believable tables, attached to a fake server / environment.",
+    "required": ["database_id", "environment_ref", "engine", "db_name", "tables", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "database_id": { "bsonType": "string", "pattern": "^fdb_[0-9A-Z]{26}$" },
+      "environment_ref": { "bsonType": "string", "description": "References generated_environments.environment_id." },
+      "server_ref": { "bsonType": ["string", "null"], "description": "References fake_servers.server_id." },
+      "engine": { "enum": ["mysql", "postgresql", "mssql", "mongodb"] },
+      "db_name": { "bsonType": "string" },
+      "tables": {
+        "bsonType": "array", "minItems": 1,
+        "items": { "bsonType": "object", "additionalProperties": false, "required": ["name", "row_count"], "properties": { "name": { "bsonType": "string" }, "row_count": { "bsonType": "int", "minimum": 0 }, "columns": { "bsonType": "array", "items": { "bsonType": "string" } }, "contains_pii": { "bsonType": "bool" } } }
+      },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

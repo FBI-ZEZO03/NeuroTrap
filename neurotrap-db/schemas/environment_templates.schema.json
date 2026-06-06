@@ -1,0 +1,32 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "environment_templates",
+    "description": "Reusable blueprint for a deception environment. spec is the declarative definition rendered into generated_environments.",
+    "required": ["template_id", "name", "industry", "spec", "version", "is_active", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "template_id": { "bsonType": "string", "pattern": "^tmpl_[0-9A-Z]{26}$" },
+      "name": { "bsonType": "string" },
+      "industry": { "enum": ["financial_services", "saas_startup", "government", "e_commerce", "healthcare", "generic"] },
+      "description": { "bsonType": "string" },
+      "spec": {
+        "bsonType": "object", "additionalProperties": false,
+        "description": "Declarative environment definition.",
+        "properties": {
+          "os_banner": { "bsonType": "string" },
+          "services": { "bsonType": "array", "items": { "enum": ["ssh", "http", "https", "ftp", "smb", "mysql", "mssql", "rdp"] } },
+          "server_count": { "bsonType": "int", "minimum": 1 },
+          "seed_documents": { "bsonType": "int", "minimum": 0 },
+          "seed_credentials": { "bsonType": "int", "minimum": 0 },
+          "token_count": { "bsonType": "int", "minimum": 0 }
+        }
+      },
+      "version": { "bsonType": "int", "minimum": 1 },
+      "is_active": { "bsonType": "bool" },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

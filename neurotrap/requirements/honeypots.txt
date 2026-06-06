@@ -1,0 +1,6 @@
+# Native Python honeypots
+# paramiko upgrades the SSH honeypot from banner-only to full credential capture.
+# It is OPTIONAL: the honeypots run without it (low-interaction SSH).
+pymongo==4.7.2
+python-dotenv==1.0.1
+paramiko==3.4.0

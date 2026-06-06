@@ -1,0 +1,16 @@
+{
+  "_id": { "$oid": "6661a1b2c3d4e5f6000003a0" },
+  "token_id": "ctok_01J9ZKW0X1Y2Z3A4B5C6D7E8F9",
+  "environment_ref": "env_01J9ZKD0E1F2G3H4J5K6L7M8N9",
+  "canary_type": "doc",
+  "trigger_value": "https://canary.neurotrap.soc/t/9f3a7c1e8d2b",
+  "alert_channel": "slack",
+  "active": true,
+  "triggered": true,
+  "trigger_count": 1,
+  "trigger_events": [
+    { "ts": { "$date": "2026-06-06T03:13:55Z" }, "source_ip": "185.220.101.4", "user_agent": "Microsoft Office Word", "alert_ref": "alrt_01J9ZKG0H1J2K3L4M5N6P7Q8R9" }
+  ],
+  "created_at": { "$date": "2026-06-06T03:12:30Z" },
+  "updated_at": { "$date": "2026-06-06T03:13:55Z" }
+}

@@ -1,0 +1,19 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "roles",
+    "description": "RBAC role definitions. Each role grants a set of permission_ids (referenced from permissions).",
+    "required": ["role_id", "name", "permission_refs", "is_system", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "role_id": { "bsonType": "string", "pattern": "^role_[a-z_]+$", "description": "Business key, e.g. role_admin." },
+      "name": { "bsonType": "string", "minLength": 2, "maxLength": 64 },
+      "description": { "bsonType": "string", "maxLength": 512 },
+      "permission_refs": { "bsonType": "array", "items": { "bsonType": "string", "pattern": "^perm_[a-z0-9_:]+$" }, "description": "References permissions.permission_id." },
+      "is_system": { "bsonType": "bool", "description": "System roles cannot be deleted." },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

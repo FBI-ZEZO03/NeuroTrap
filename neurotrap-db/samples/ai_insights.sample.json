@@ -1,0 +1,23 @@
+{
+  "_id": { "$oid": "6661a1b2c3d4e5f6000003d0" },
+  "insight_id": "ains_01J9ZKZ0A1B2C3D4E5F6G7H8J9",
+  "scope": { "type": "twin", "ref": "dt_01J9ZKC0D1E2F3G4H5J6K7L8M9" },
+  "predicted_next_attack_step": { "tactic": "impact", "technique_id": "T1486", "probability": 0.61 },
+  "threat_predictions": [
+    { "label": "ransomware_stage", "probability": 0.58, "horizon_hours": 24 },
+    { "label": "lateral_movement", "probability": 0.44, "horizon_hours": 6 }
+  ],
+  "campaign_detection_results": [
+    { "campaign_ref": "camp_01J9ZL00A1B2C3D4E5F6G7H8J9", "score": 0.83 }
+  ],
+  "anomaly_detection_results": [
+    { "metric": "commands_per_minute", "anomaly_score": 0.79, "is_anomaly": true }
+  ],
+  "behavioral_predictions": [
+    { "metric": "next_session_duration_sec", "predicted_value": 210.0 }
+  ],
+  "ai_confidence_score": 0.72,
+  "generated_at": { "$date": "2026-06-06T03:15:00Z" },
+  "created_at": { "$date": "2026-06-06T03:15:00Z" },
+  "updated_at": { "$date": "2026-06-06T03:15:00Z" }
+}

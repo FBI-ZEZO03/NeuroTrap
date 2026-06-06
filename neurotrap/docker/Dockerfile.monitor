@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+# Need libpcap for Scapy
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpcap-dev tcpdump iproute2 iptables \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements/monitor.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ /app/src/
+
+ENV PYTHONPATH=/app
+CMD ["python", "-m", "src.detection.main"]

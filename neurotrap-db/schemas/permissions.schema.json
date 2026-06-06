@@ -1,0 +1,18 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "permissions",
+    "description": "Granular permission catalog in resource:action form. Referenced by roles.permission_refs.",
+    "required": ["permission_id", "resource", "action", "description", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "permission_id": { "bsonType": "string", "pattern": "^perm_[a-z0-9_]+:[a-z]+$", "description": "e.g. perm_sessions:read." },
+      "resource": { "enum": ["users", "roles", "permissions", "sessions", "actors", "intel", "mitre", "response", "alerts", "reports", "deception", "ai", "twins", "campaigns"] },
+      "action": { "enum": ["read", "write", "delete", "execute", "review"] },
+      "description": { "bsonType": "string", "maxLength": 256 },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

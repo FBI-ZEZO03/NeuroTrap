@@ -1,0 +1,23 @@
+# Cowrie credential database — format: username:uid:password
+# Lines starting with ! mean password will NOT be accepted (lure only)
+# Wildcard * accepts any password
+
+root:0:*
+admin:0:admin
+admin:0:password
+admin:0:123456
+admin:0:admin123
+ubuntu:1000:ubuntu
+ubuntu:1000:*
+user:1001:user
+user:1001:password123
+pi:1002:raspberry
+pi:1002:*
+deploy:1003:deploy
+git:1004:git
+test:1005:test
+oracle:1006:oracle
+postgres:1007:postgres
+mysql:1008:mysql
+nagios:1009:nagios
+jenkins:1010:jenkins

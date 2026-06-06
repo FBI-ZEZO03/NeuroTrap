@@ -1,0 +1,22 @@
+[
+  {
+    "_id": { "$oid": "6661a1b2c3d4e5f600000010" },
+    "role_id": "role_admin",
+    "name": "Administrator",
+    "description": "Full platform control, including user and config management.",
+    "permission_refs": ["perm_users:write", "perm_roles:write", "perm_sessions:read", "perm_response:execute", "perm_reports:write"],
+    "is_system": true,
+    "created_at": { "$date": "2026-01-01T00:00:00Z" },
+    "updated_at": { "$date": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "_id": { "$oid": "6661a1b2c3d4e5f600000011" },
+    "role_id": "role_analyst",
+    "name": "SOC Analyst",
+    "description": "Investigate sessions, run/approve AI outputs, trigger responses.",
+    "permission_refs": ["perm_sessions:read", "perm_actors:read", "perm_response:execute", "perm_ai:review", "perm_reports:read"],
+    "is_system": true,
+    "created_at": { "$date": "2026-01-01T00:00:00Z" },
+    "updated_at": { "$date": "2026-01-01T00:00:00Z" }
+  }
+]

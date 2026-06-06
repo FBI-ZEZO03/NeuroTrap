@@ -1,0 +1,24 @@
+{
+  "_id": { "$oid": "6661a1b2c3d4e5f600000140" },
+  "action_id": "act_01J9ZKF0G1H2J3K4L5M6N7P8Q9",
+  "related_session": "sess_01J9ZK9A0B1C2D3E4F5G6H7J8K",
+  "related_actor": "actor_01J9ZKB0C1D2E3F4G5H6J7K8L9",
+  "threat_score": 78.5,
+  "risk_level": "high",
+  "action_type": "isolate",
+  "automated_decision": true,
+  "decided_by": null,
+  "target_ip": "185.220.101.4",
+  "status": "applied",
+  "applied_at": { "$date": "2026-06-06T03:14:03Z" },
+  "expires_at": { "$date": "2026-06-07T03:14:03Z" },
+  "decision_logs": [
+    { "ts": { "$date": "2026-06-06T03:14:02Z" }, "message": "threat_score 78.5 in [70,90) → isolate", "rule": "matrix:isolate" }
+  ],
+  "response_history": [
+    { "ts": { "$date": "2026-06-06T03:14:02Z" }, "status": "pending", "note": "queued" },
+    { "ts": { "$date": "2026-06-06T03:14:03Z" }, "status": "applied", "note": "session moved to deeper honeypot" }
+  ],
+  "created_at": { "$date": "2026-06-06T03:14:02Z" },
+  "updated_at": { "$date": "2026-06-06T03:14:03Z" }
+}

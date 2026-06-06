@@ -1,0 +1,77 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "attack_sessions",
+    "description": "Core honeypot telemetry, one document per attacker session. Bounded child arrays (commands/files/credentials/timeline) are EMBEDDED because they are owned by and read with the session. threat_actor_ref/digital_twin_ref are REFERENCES to shared, independently-queried profiles. credentials_attempted[].password is field-encrypted.",
+    "required": ["session_id", "source_ip", "destination_service", "protocol", "honeypot_source", "start_time", "session_status", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "session_id": { "bsonType": "string", "pattern": "^sess_[0-9A-Z]{26}$", "description": "Business key, unique." },
+      "source_ip": { "bsonType": "string", "description": "Attacker source IP (IPv4/IPv6)." },
+      "source_port": { "bsonType": "int", "minimum": 0, "maximum": 65535 },
+      "destination_service": { "bsonType": "string", "description": "Logical service hit, e.g. ssh-gateway, web-portal." },
+      "destination_port": { "bsonType": "int", "minimum": 0, "maximum": 65535 },
+      "protocol": { "enum": ["ssh", "telnet", "http", "https", "ftp", "smb", "rdp", "mysql", "mssql", "snmp", "vnc", "sip", "other"] },
+      "honeypot_source": { "enum": ["cowrie", "dionaea", "opencanary", "galah", "other"] },
+      "start_time": { "bsonType": "date" },
+      "end_time": { "bsonType": ["date", "null"] },
+      "duration_seconds": { "bsonType": ["double", "null"], "minimum": 0, "description": "Derived end_time - start_time; null while active." },
+      "session_status": { "enum": ["active", "closed", "timed_out", "terminated"] },
+      "risk_score": { "bsonType": "double", "minimum": 0, "maximum": 100, "description": "Composite session hostility (see score registry)." },
+      "threat_actor_ref": { "bsonType": ["string", "null"], "pattern": "^(actor_[0-9A-Z]{26})?$", "description": "References threat_actors.actor_id." },
+      "digital_twin_ref": { "bsonType": ["string", "null"], "description": "References digital_twins.digital_twin_id." },
+      "deception_environment_ref": { "bsonType": ["string", "null"], "description": "References active_environments.environment_id if engaged." },
+      "commands_executed": {
+        "bsonType": "array",
+        "description": "Embedded command log (bounded per session).",
+        "items": {
+          "bsonType": "object", "additionalProperties": false, "required": ["ts", "command"],
+          "properties": {
+            "ts": { "bsonType": "date" },
+            "command": { "bsonType": "string" },
+            "exit_code": { "bsonType": ["int", "null"] }
+          }
+        }
+      },
+      "files_accessed": {
+        "bsonType": "array",
+        "items": {
+          "bsonType": "object", "additionalProperties": false, "required": ["path", "operation"],
+          "properties": {
+            "path": { "bsonType": "string" },
+            "operation": { "enum": ["read", "write", "delete", "download", "upload", "execute"] },
+            "sha256": { "bsonType": ["string", "null"] }
+          }
+        }
+      },
+      "credentials_attempted": {
+        "bsonType": "array",
+        "description": "Embedded; password is field-encrypted at rest.",
+        "items": {
+          "bsonType": "object", "additionalProperties": false, "required": ["username"],
+          "properties": {
+            "username": { "bsonType": "string" },
+            "password": { "bsonType": ["string", "null"], "description": "Encrypted." },
+            "success": { "bsonType": "bool" }
+          }
+        }
+      },
+      "session_timeline": {
+        "bsonType": "array",
+        "description": "Ordered event stream for replay/visualisation.",
+        "items": {
+          "bsonType": "object", "additionalProperties": false, "required": ["ts", "event_type"],
+          "properties": {
+            "ts": { "bsonType": "date" },
+            "event_type": { "enum": ["connect", "auth", "command", "file", "download", "disconnect", "anomaly"] },
+            "detail": { "bsonType": "string" }
+          }
+        }
+      },
+      "tags": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

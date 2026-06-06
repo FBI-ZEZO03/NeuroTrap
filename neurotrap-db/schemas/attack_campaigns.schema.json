@@ -1,0 +1,26 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "attack_campaigns",
+    "description": "Correlated multi-actor / multi-session campaign. related_* are reference arrays; shared_* capture the common signals that bound the cluster.",
+    "required": ["campaign_id", "campaign_name", "status", "campaign_confidence_score", "first_seen", "last_seen", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "campaign_id": { "bsonType": "string", "pattern": "^camp_[0-9A-Z]{26}$" },
+      "campaign_name": { "bsonType": "string" },
+      "description": { "bsonType": "string" },
+      "status": { "enum": ["candidate", "confirmed", "monitoring", "closed"] },
+      "related_attackers": { "bsonType": "array", "items": { "bsonType": "string", "description": "References threat_actors.actor_id." } },
+      "related_sessions": { "bsonType": "array", "items": { "bsonType": "string", "description": "References attack_sessions.session_id." } },
+      "shared_behaviors": { "bsonType": "array", "items": { "bsonType": "string" } },
+      "shared_mitre_techniques": { "bsonType": "array", "items": { "bsonType": "string", "pattern": "^T[0-9]{4}(\\.[0-9]{3})?$" } },
+      "shared_infrastructure": { "bsonType": "array", "items": { "bsonType": "object", "additionalProperties": false, "required": ["type", "value"], "properties": { "type": { "enum": ["ip", "asn", "domain", "payload_hash", "ssh_key", "user_agent"] }, "value": { "bsonType": "string" } } } },
+      "campaign_confidence_score": { "bsonType": "double", "minimum": 0, "maximum": 1 },
+      "first_seen": { "bsonType": "date" },
+      "last_seen": { "bsonType": "date" },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}

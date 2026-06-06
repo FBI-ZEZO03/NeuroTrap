@@ -1,0 +1,22 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "title": "fake_filesystems",
+    "description": "Decoy filesystem tree seeded into a fake server. entries[] is a bounded, embedded listing of notable paths.",
+    "required": ["filesystem_id", "environment_ref", "root_path", "entries", "created_at", "updated_at"],
+    "additionalProperties": false,
+    "properties": {
+      "_id": { "bsonType": "objectId" },
+      "filesystem_id": { "bsonType": "string", "pattern": "^ffs_[0-9A-Z]{26}$" },
+      "environment_ref": { "bsonType": "string", "description": "References generated_environments.environment_id." },
+      "server_ref": { "bsonType": ["string", "null"], "description": "References fake_servers.server_id." },
+      "root_path": { "bsonType": "string" },
+      "entries": {
+        "bsonType": "array", "minItems": 1,
+        "items": { "bsonType": "object", "additionalProperties": false, "required": ["path", "type"], "properties": { "path": { "bsonType": "string" }, "type": { "enum": ["file", "dir", "symlink"] }, "size_bytes": { "bsonType": "long", "minimum": 0 }, "is_bait": { "bsonType": "bool" } } }
+      },
+      "created_at": { "bsonType": "date" },
+      "updated_at": { "bsonType": "date" }
+    }
+  }
+}
