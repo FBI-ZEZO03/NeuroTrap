@@ -203,9 +203,37 @@ function initApp() {
   initCharts();
   initWebSocket();
   fetchDashboard();
-  loadDashTopCountries();
-  setInterval(() => { fetchDashboard(); loadDashTopCountries(); }, 15000);
+  fetchTopCountries();
+  setInterval(() => { fetchDashboard(); fetchTopCountries(); }, 15000);
   setTimeout(injectDemo, 1000);
+}
+
+async function fetchTopCountries() {
+  const el = document.getElementById('dash-top-countries');
+  if (!el) return;
+  try {
+    const d = await fetch('/api/intel').then(r => r.json());
+    const countries = (d.top_countries || []).slice(0, 10);
+    if (!countries.length) {
+      el.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-globe" style="font-size:22px;color:var(--border2)"></i>No attacker data yet</div>';
+      return;
+    }
+    const max = countries[0].count || 1;
+    el.innerHTML = countries.map((c, i) => {
+      const pct = Math.round((c.count / max) * 100);
+      const color = i === 0 ? '#f43f5e' : i === 1 ? '#f59e0b' : i < 4 ? '#a855f7' : '#475569';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-dim)">
+        <span style="color:${color};font-weight:700;font-size:11px;width:18px;text-align:right">${i + 1}</span>
+        <span style="flex:1;color:var(--text-primary);font-size:12px">${c.country}</span>
+        <div style="width:70px;height:5px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
+        </div>
+        <span style="color:var(--text-muted);font-size:11px;width:28px;text-align:right">${c.count}</span>
+      </div>`;
+    }).join('');
+  } catch (_) {
+    el.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-globe" style="font-size:22px;color:var(--border2)"></i>No attacker data yet</div>';
+  }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
