@@ -12,6 +12,12 @@ networks:
   management-net:
     driver: bridge
     internal: true
+  monitor-bridge:
+    driver: bridge
+    internal: false
+    ipam:
+      config:
+        - subnet: 172.25.0.0/24
 
 volumes:
   cowrie-logs:
@@ -37,28 +43,17 @@ services:
     volumes:
       - ./config/cowrie/cowrie.cfg:/cowrie/etc/cowrie.cfg:ro
       - ./config/cowrie/userdb.txt:/cowrie/etc/userdb.txt:ro
-      - cowrie-logs:/cowrie/var/log/cowrie
+      - cowrie-logs:/cowrie/cowrie-git/var/log/cowrie
     environment:
       - COWRIE_LISTEN_ENDPOINTS=tcp:2222:interface=0.0.0.0
 
   # ─────────────────────────────────────────────
   # DIONAEA — Multi-protocol malware collector
   # ─────────────────────────────────────────────
-  dionaea:
-    image: dinotools/dionaea:latest
-    container_name: neurotrap-dionaea
-    restart: unless-stopped
-    networks:
-      - honeypot-net
-      - elk-net
-    ports:
-      - "21:21"
-      - "80:80"
-      - "445:445"
-      - "3306:3306"
-    volumes:
-      - ./config/dionaea/dionaea.cfg:/opt/dionaea/etc/dionaea/dionaea.cfg:ro
-      - dionaea-logs:/opt/dionaea/var/log/dionaea
+  # Dionaea is disabled: dinotools/dionaea:latest crashes (SIGTRAP) on kernel 6.8
+  # due to libemu. Its ports (21/80/445/3306) are now served by OpenCanary above.
+  # dionaea:
+  #   image: dinotools/dionaea:latest
 
   # ─────────────────────────────────────────────
   # OPENCANARY — Thinkst maintained low-interaction multi-service honeypot
@@ -78,10 +73,16 @@ services:
       - honeypot-net
       - elk-net
     ports:
+      # Ports taken over from Dionaea (incompatible with kernel 6.8 due to libemu)
+      - "21:21"          # FTP
+      - "80:80"          # HTTP
+      - "445:445"        # SMB
+      - "3306:3306"      # MySQL
+      # Original OpenCanary ports
       - "1433:1433"      # MSSQL
       - "161:161/udp"    # SNMP
       - "5900:5900"      # VNC
-      - "3389:3389"      # RDP — closes the previously unserved UFW-open port
+      - "3389:3389"      # RDP
     volumes:
       - ./config/opencanary/opencanary.conf:/root/.opencanary.conf:ro
       - opencanary-logs:/var/tmp/opencanary
@@ -106,7 +107,7 @@ services:
       - "${GALAH_PROVIDER:-anthropic}"
       - "--model"
       - "${GALAH_MODEL:-claude-opus-4-8}"
-      - "--config"
+      - "--config-file"
       - "/galah/config/config.yaml"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -150,8 +151,10 @@ services:
     container_name: neurotrap-mongodb
     restart: unless-stopped
     networks:
-      - elk-net
-      - management-net
+      elk-net:
+      management-net:
+      monitor-bridge:
+        ipv4_address: 172.25.0.10
     volumes:
       - mongodb-data:/data/db
     environment:
@@ -175,8 +178,9 @@ services:
     volumes:
       - ./src:/app/src:ro
       - ./logs:/app/logs
+      - cowrie-logs:/cowrie/logs:ro
     environment:
-      - MONGO_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-neurotrap_secret}@mongodb:27017/neurotrap?authSource=admin
+      - MONGO_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-neurotrap_secret}@172.25.0.10:27017/neurotrap?authSource=admin
       - MONITOR_INTERFACE=${MONITOR_INTERFACE:-eth0}
     depends_on:
       - mongodb
@@ -255,6 +259,7 @@ services:
     container_name: neurotrap-nginx
     restart: unless-stopped
     networks:
+      - honeypot-net
       - management-net
     ports:
       - "443:443"

@@ -27,10 +27,16 @@ def main():
     collection.create_index("timestamp")
     collection.create_index("attack_type")
 
+    sessions_col = db["cowrie_sessions"]
+    sessions_col.create_index("session_id")
+    sessions_col.create_index("src_ip")
+    sessions_col.create_index("analyzed")
+
     pipeline = LogIngestionPipeline(
         collection=collection,
         cowrie_log=os.getenv("COWRIE_LOG", "/cowrie/logs/cowrie.json"),
         dionaea_log=os.getenv("DIONAEA_LOG", "/opt/dionaea/var/log/dionaea/dionaea.json"),
+        sessions_collection=sessions_col,
     )
     pipeline.start()
 

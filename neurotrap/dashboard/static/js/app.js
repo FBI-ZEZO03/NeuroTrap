@@ -312,11 +312,63 @@ async function loadFullAttackers() {
 }
 async function loadFullEnvs() {
   try {
-    const d = await (await fetch('/api/environments')).json();
-    const envs = d.environments||[];
+    const [ed, hd] = await Promise.all([
+      fetch('/api/environments').then(r=>r.json()),
+      fetch('/api/honeypots').then(r=>r.json()),
+    ]);
+
+    // Sensors grid
+    const sensors = hd.sensors || [];
+    const sg = document.getElementById('sensors-grid');
+    if (sg) {
+      const totalHits = hd.total_hits || 0;
+      const uniq = hd.unique_attackers || 0;
+      document.getElementById('sensors-summary').textContent = `${totalHits} total hits · ${uniq} unique attackers`;
+      sg.innerHTML = sensors.map(s => {
+        const hitColor = s.hits > 0 ? '#22d3ee' : 'var(--t4)';
+        const dot = s.status==='online' ? '#10b981' : '#f43f5e';
+        const last = s.last_seen ? timeSince(s.last_seen) : 'never';
+        return `<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0"></div>
+            <span style="font-weight:700;color:var(--t1);font-size:13px">${s.protocol}</span>
+            <span style="margin-left:auto;color:var(--t4);font-size:11px">:${s.port}</span>
+          </div>
+          <div style="font-size:22px;font-weight:800;color:${hitColor};margin-bottom:4px">${s.hits}</div>
+          <div style="font-size:11px;color:var(--t4)">hits · last: ${last}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // Recent sessions table
+    const sessions = hd.recent_sessions || [];
+    document.getElementById('sessions-count').textContent = `${sessions.length} shown`;
+    const stb = document.getElementById('sessions-tbody');
+    if (stb) {
+      if (!sessions.length) {
+        stb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--t4);padding:24px;font-family:var(--sans)">No sessions yet</td></tr>';
+      } else {
+        stb.innerHTML = sessions.map(s => {
+          const cmds = (s.commands||[]).length;
+          const dur = s.duration_secs ? s.duration_secs.toFixed(1)+'s' : '—';
+          const ago = s.start_time ? timeSince(s.start_time) : '—';
+          return `<tr>
+            <td style="color:var(--cyan);font-weight:700">${s.src_ip||'—'}</td>
+            <td style="color:var(--t2)">${s.protocol||'ssh'}</td>
+            <td style="color:var(--t3)">${s.username||'—'}</td>
+            <td style="color:var(--purple);font-weight:600">${cmds}</td>
+            <td style="color:var(--t3)">${dur}</td>
+            <td style="color:var(--t4)">${ago}</td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    // Deception environments
+    const envs = ed.environments||[];
     document.getElementById('envs-count').textContent = `${envs.length} active`;
     renderEnvCards('envs-full', envs);
-  } catch(e) {}
+  } catch(e) { console.error('loadFullEnvs', e); }
 }
 async function loadResponses() {
   try {

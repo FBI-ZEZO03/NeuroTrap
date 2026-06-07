@@ -46,7 +46,7 @@ def main():
                 profile = AttackerProfile(**{k: v for k, v in p_dict.items()
                                              if k in AttackerProfile.__dataclass_fields__})
 
-                if profile.threat_score >= 30 and not profile.is_blocked:
+                if profile.threat_score >= 10 and not profile.is_blocked:
                     deception_engine.generate_environment(profile)
                     decision = response_engine.evaluate(profile)
                     logger.info("Response for %s: %s", ip, decision.action)

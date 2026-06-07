@@ -325,11 +325,36 @@
     ═══════════════════════════ -->
     <section class="section" id="sec-environments">
       <div class="page-header">
-        <div class="page-title">Deception Environments</div>
-        <div class="page-subtitle">Active honeypot instances spawned by the Deception Engine</div>
+        <div class="page-title">Honeypots</div>
+        <div class="page-subtitle">Live sensor status and dynamic deception environments</div>
       </div>
+
+      <!-- Live Sensors -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head"><i class="fa-solid fa-network-wired" style="color:#22d3ee"></i>Live Sensors <span id="sensors-summary" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span></div>
+        <div class="card-body">
+          <div id="sensors-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+            <div style="color:var(--t4);font-size:12px">Loading sensors…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Sessions -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-head"><i class="fa-solid fa-terminal" style="color:#f59e0b"></i>Recent Attacker Sessions <span id="sessions-count" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span></div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Source IP</th><th>Protocol</th><th>Username</th><th>Commands</th><th>Duration</th><th>Time</th></tr></thead>
+            <tbody id="sessions-tbody">
+              <tr><td colspan="6" style="text-align:center;color:var(--t4);padding:24px;font-family:var(--sans)">No sessions yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Deception Environments -->
       <div class="card">
-        <div class="card-head"><i class="fa-solid fa-spider" style="color:#a855f7"></i>Active Environments <span id="envs-count" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span></div>
+        <div class="card-head"><i class="fa-solid fa-spider" style="color:#a855f7"></i>Dynamic Deception Environments <span id="envs-count" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span></div>
         <div class="card-body">
           <div id="envs-full" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">
             <div style="color:var(--t4);font-size:12px"><i class="fa-solid fa-server" style="margin-right:6px"></i>No active environments</div>

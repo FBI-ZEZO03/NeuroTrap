@@ -269,9 +269,10 @@ def get_honeypots():
         last_seen = None
         if db is not None:
             try:
-                hits = db["alert_events"].count_documents({"honeypot_source": sensor["name"]})
+                hits = db["alert_events"].count_documents({"dst_port": sensor["port"]})
                 latest = db["alert_events"].find_one(
-                    {"honeypot_source": sensor["name"]}, {"_id": 0, "timestamp": 1}
+                    {"dst_port": sensor["port"]}, {"_id": 0, "timestamp": 1},
+                    sort=[("timestamp", -1)],
                 )
                 last_seen = latest.get("timestamp") if latest else None
             except Exception:
@@ -284,7 +285,7 @@ def get_honeypots():
     if db is not None:
         try:
             sessions = list(
-                db["honeypot_sessions"].find({}, {"_id": 0}).sort("started_at", -1).limit(50)
+                db["cowrie_sessions"].find({}, {"_id": 0}).sort("start_time", -1).limit(50)
             )
             unique_ips = {s.get("src_ip") for s in sessions if s.get("src_ip")}
         except Exception:
@@ -372,10 +373,33 @@ def _get_ashrta():
 @app.route("/api/cbee/profiles", methods=["GET"])
 def get_cbee_profiles():
     cbee = _get_cbee()
-    if cbee:
-        return jsonify({"profiles": cbee.get_all_profiles()})
-    # Demo data
-    import math
+    if cbee is not None:
+        profiles = cbee.get_all_profiles()
+        # Auto-score any attacker profiles that don't have a bias profile yet
+        if not profiles:
+            try:
+                from src.cbee.bias_scorer import BiasScorer
+                scorer = BiasScorer()
+                db = get_db()
+                if db is not None:
+                    for ap in db["attacker_profiles"].find({}, {"_id": 0}).limit(20):
+                        session_data = {
+                            "commands": [s.get("commands", []) for s in ap.get("sessions", [])],
+                            "duration_secs": ap.get("total_commands", 1) * 8,
+                            "login_attempts": ap.get("session_count", 1),
+                        }
+                        session_data["commands"] = [c for sub in session_data["commands"] for c in sub]
+                        scored = scorer.score(session_data)
+                        cbee.db["cbee_profiles"].update_one(
+                            {"src_ip": ap["src_ip"]},
+                            {"$set": {**scored.to_dict(), "src_ip": ap["src_ip"], "updated_at": time.time()}},
+                            upsert=True,
+                        )
+                    profiles = cbee.get_all_profiles()
+            except Exception as exc:
+                logger.warning("CBEE auto-score failed: %s", exc)
+        return jsonify({"profiles": profiles})
+    # Demo data fallback
     now = time.time()
     return jsonify({"profiles": [
         {"src_ip":"185.220.101.42","curiosity_gap":82,"confirmation_bias":45,"sunk_cost":67,"authority_signal":91,"scarcity_framing":38,"overall":64.6,"dominant":"authority_signal","updated_at":now-120},
@@ -386,7 +410,7 @@ def get_cbee_profiles():
 @app.route("/api/cbee/injections", methods=["GET"])
 def get_cbee_injections():
     db = get_db()
-    if db:
+    if db is not None:
         docs = list(db["cbee_injections"].find({}, {"_id":0}).sort("created_at",-1).limit(20))
         return jsonify({"injections": docs})
     return jsonify({"injections": [

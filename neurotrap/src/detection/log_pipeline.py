@@ -56,6 +56,66 @@ class LogTailer:
                     time.sleep(self.poll_interval)
 
 
+class CowrieSessionBuilder:
+    """Aggregates per-session Cowrie events and writes complete sessions to cowrie_sessions."""
+
+    def __init__(self, sessions_collection):
+        self._col = sessions_collection
+        self._buf: dict[str, dict] = {}
+
+    def handle(self, raw: dict):
+        eid = raw.get("eventid", "")
+        sid = raw.get("session", "")
+        if not sid:
+            return
+
+        if eid == "cowrie.session.connect":
+            self._buf[sid] = {
+                "session_id": sid,
+                "src_ip": raw.get("src_ip", "0.0.0.0"),
+                "src_port": raw.get("src_port", 0),
+                "protocol": raw.get("protocol", "ssh"),
+                "start_time": time.time(),
+                "commands": [],
+                "login_attempts": 0,
+                "failed_logins": 0,
+                "username": None,
+                "password": None,
+                "duration_secs": 0.0,
+                "analyzed": False,
+            }
+        elif sid in self._buf:
+            s = self._buf[sid]
+            if eid == "cowrie.login.success":
+                s["login_attempts"] += 1
+                s["username"] = raw.get("username")
+                s["password"] = raw.get("password")
+            elif eid == "cowrie.login.failed":
+                s["login_attempts"] += 1
+                s["failed_logins"] += 1
+            elif eid == "cowrie.command.input":
+                s["commands"].append(raw.get("input", ""))
+            elif eid == "cowrie.session.closed":
+                try:
+                    s["duration_secs"] = float(raw.get("duration", 0))
+                except (TypeError, ValueError):
+                    pass
+                self._flush(sid, s)
+
+    def _flush(self, sid: str, session: dict):
+        try:
+            self._col.update_one(
+                {"session_id": sid},
+                {"$set": session},
+                upsert=True,
+            )
+            logger.info("Session saved: %s ip=%s cmds=%d", sid, session["src_ip"], len(session["commands"]))
+        except Exception as exc:
+            logger.error("Session write failed: %s", exc)
+        finally:
+            self._buf.pop(sid, None)
+
+
 class LogIngestionPipeline:
     """
     Coordinates multiple log tailers and normalizes all events into
@@ -68,11 +128,13 @@ class LogIngestionPipeline:
 
     def __init__(
         self,
-        collection,                 # pymongo collection
+        collection,                 # pymongo collection (alert_events)
         cowrie_log: str | None = None,
         dionaea_log: str | None = None,
+        sessions_collection=None,   # pymongo collection (cowrie_sessions)
     ):
         self.collection = collection
+        self._session_builder = CowrieSessionBuilder(sessions_collection) if sessions_collection is not None else None
         self._tailers: list[LogTailer] = []
 
         if cowrie_log:
@@ -103,6 +165,8 @@ class LogIngestionPipeline:
     def _handle_cowrie(self, raw: dict):
         event = AlertEvent.from_cowrie(raw)
         self.ingest(event)
+        if self._session_builder:
+            self._session_builder.handle(raw)
 
     def _handle_dionaea(self, raw: dict):
         # Dionaea logs have their own schema; do a basic mapping
