@@ -166,6 +166,8 @@ const state = {
   timelineChart: null,
   breakdownChart: null,
   feedItems: [],
+  feedPage: 0,
+  eventsFeedPage: 0,
   timelineBuckets: new Array(60).fill(0),
   selectedIP: null,
   loaded: { intel:false, cbee:false, gadcf:false, fhim:false, ashrta:false, twin:false, soc:false, attackers:false, responses:false },
@@ -347,21 +349,31 @@ function setWs(c) {
 /* ════════════════════════════════════════
    FEED
 ════════════════════════════════════════ */
+const FEED_PG = 20;
+const EVENTS_PG = 50;
+
+function _filteredFeed(typeId, sevId) {
+  const ft = document.getElementById(typeId)?.value || '';
+  const fs = document.getElementById(sevId)?.value || '';
+  return state.feedItems.filter(e => (!ft || e.attack_type === ft) && (!fs || e.severity === fs));
+}
+
 function addFeed(e) {
   state.feedItems.unshift(e);
-  if (state.feedItems.length > 500) state.feedItems.pop();
-  renderFeedInto('feed-list', 'filter-type', 'filter-sev', 200);
+  if (state.feedItems.length > 5000) state.feedItems.pop();
+  renderMainFeed();
   if (document.getElementById('sec-events').classList.contains('active')) renderEventsPage();
 }
+
 function buildFeedItem(e) {
-  const icon = ATTACK_ICONS[e.attack_type]||ATTACK_ICONS.unknown;
-  const sev = e.severity||'low';
+  const icon = ATTACK_ICONS[e.attack_type] || ATTACK_ICONS.unknown;
+  const sev = e.severity || 'low';
   let ts = '—';
   if (e.timestamp) {
     const d = new Date(e.timestamp * 1000);
-    const date = d.toISOString().slice(0,10);
-    const time = d.toISOString().slice(11,19);
-    const today = new Date().toISOString().slice(0,10);
+    const date = d.toISOString().slice(0, 10);
+    const time = d.toISOString().slice(11, 19);
+    const today = new Date().toISOString().slice(0, 10);
     ts = date === today ? time : `${date} ${time}`;
   }
   const div = document.createElement('div');
@@ -372,9 +384,9 @@ function buildFeedItem(e) {
       <i class="fa-solid ${icon}" style="color:var(--t4);font-size:12px"></i>
       <span class="feed-ip">${e.src_ip}</span>
       <span style="color:var(--t4)">&#8594;</span>
-      <span class="feed-type">${(e.attack_type||'').replace(/_/g,' ')}</span>
+      <span class="feed-type">${(e.attack_type || '').replace(/_/g, ' ')}</span>
       <span style="color:var(--t4)">:${e.dst_port}</span>
-      <span class="feed-src">[${e.honeypot_source||'?'}]</span>
+      <span class="feed-src">[${e.honeypot_source || '?'}]</span>
     </div>
     <div class="feed-time">
       <i class="fa-regular fa-clock"></i>${ts}
@@ -382,20 +394,61 @@ function buildFeedItem(e) {
   div.onclick = () => openModal(e.src_ip);
   return div;
 }
-function renderFeedInto(listId, typeId, sevId, cap) {
+
+function _renderFeed(listId, pagingId, items, page, pageSize, pageFn) {
   const list = document.getElementById(listId);
-  const ft = document.getElementById(typeId)?.value || '';
-  const fs = document.getElementById(sevId)?.value || '';
-  const items = state.feedItems.filter(e => (!ft||e.attack_type===ft)&&(!fs||e.severity===fs)).slice(0,cap);
-  if (!items.length) { list.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-satellite-dish" style="font-size:24px;color:var(--border2)"></i>No events</div>'; return; }
+  const paging = document.getElementById(pagingId);
+  if (!items.length) {
+    list.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-satellite-dish" style="font-size:24px;color:var(--border2)"></i>No events</div>';
+    if (paging) paging.innerHTML = '';
+    return;
+  }
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  page = Math.max(0, Math.min(page, totalPages - 1));
+  const slice = items.slice(page * pageSize, (page + 1) * pageSize);
   list.innerHTML = '';
-  items.forEach(e => list.appendChild(buildFeedItem(e)));
+  slice.forEach(e => list.appendChild(buildFeedItem(e)));
+  if (paging) {
+    paging.innerHTML = `
+      <div class="feed-paging">
+        <button class="pg-btn" onclick="${pageFn}(${page - 1})" ${page === 0 ? 'disabled' : ''}>&#8249; Prev</button>
+        <span class="pg-info">Page ${page + 1} / ${totalPages} &nbsp;&middot;&nbsp; ${items.length} events</span>
+        <button class="pg-btn" onclick="${pageFn}(${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}>Next &#8250;</button>
+      </div>`;
+  }
 }
-function applyFilter() { renderFeedInto('feed-list','filter-type','filter-sev',200); }
-function clearFeed() { state.feedItems=[]; document.getElementById('feed-list').innerHTML='<div class="feed-empty"><i class="fa-solid fa-broom" style="font-size:24px;color:var(--border2)"></i>Cleared</div>'; }
-function renderEventsPage() { renderFeedInto('events-page-list','events-filter-type','events-filter-sev',500); }
-function applyEventsFilter() { renderEventsPage(); }
-function clearEventsPage() { document.getElementById('events-page-list').innerHTML='<div class="feed-empty">Cleared</div>'; }
+
+function renderMainFeed() {
+  const items = _filteredFeed('filter-type', 'filter-sev');
+  _renderFeed('feed-list', 'feed-paging', items, state.feedPage, FEED_PG, 'setFeedPage');
+}
+function setFeedPage(p) {
+  const total = Math.max(1, Math.ceil(_filteredFeed('filter-type', 'filter-sev').length / FEED_PG));
+  state.feedPage = Math.max(0, Math.min(p, total - 1));
+  renderMainFeed();
+}
+function applyFilter() { state.feedPage = 0; renderMainFeed(); }
+function clearFeed() {
+  state.feedItems = []; state.feedPage = 0;
+  document.getElementById('feed-list').innerHTML = '<div class="feed-empty"><i class="fa-solid fa-broom" style="font-size:24px;color:var(--border2)"></i>Cleared</div>';
+  document.getElementById('feed-paging').innerHTML = '';
+}
+
+function renderEventsPage() {
+  const items = _filteredFeed('events-filter-type', 'events-filter-sev');
+  _renderFeed('events-page-list', 'events-paging', items, state.eventsFeedPage, EVENTS_PG, 'setEvtPage');
+}
+function setEvtPage(p) {
+  const total = Math.max(1, Math.ceil(_filteredFeed('events-filter-type', 'events-filter-sev').length / EVENTS_PG));
+  state.eventsFeedPage = Math.max(0, Math.min(p, total - 1));
+  renderEventsPage();
+}
+function applyEventsFilter() { state.eventsFeedPage = 0; renderEventsPage(); }
+function clearEventsPage() {
+  state.eventsFeedPage = 0;
+  document.getElementById('events-page-list').innerHTML = '<div class="feed-empty">Cleared</div>';
+  document.getElementById('events-paging').innerHTML = '';
+}
 
 /* ════════════════════════════════════════
    DASHBOARD DATA

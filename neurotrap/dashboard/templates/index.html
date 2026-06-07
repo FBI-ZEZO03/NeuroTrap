@@ -183,9 +183,10 @@
             </select>
             <button onclick="clearFeed()" class="btn btn-sm btn-secondary"><i class="fa-solid fa-trash-can"></i></button>
           </div>
-          <div class="feed-list" id="feed-list" style="min-height:280px">
+          <div class="feed-list" id="feed-list" style="height:420px;overflow-y:auto">
             <div class="feed-empty"><i class="fa-solid fa-satellite-dish" style="font-size:24px;color:var(--border2)"></i>Waiting for events…</div>
           </div>
+          <div id="feed-paging"></div>
         </div>
 
         <div class="card" style="display:flex;flex-direction:column">
@@ -320,7 +321,8 @@
             <button onclick="clearEventsPage()" class="btn btn-sm btn-secondary"><i class="fa-solid fa-trash-can"></i></button>
           </div>
         </div>
-        <div class="feed-list" id="events-page-list" style="flex:1;min-height:600px;max-height:900px"></div>
+        <div class="feed-list" id="events-page-list" style="height:600px;overflow-y:auto"></div>
+        <div id="events-paging"></div>
       </div>
     </section>
 
