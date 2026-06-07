@@ -28,24 +28,42 @@ let _behaviorSort = { key: 'threat_score', dir: -1 };
 
 /* ── Main loader ─────────────────────────────────────────────────────────── */
 
+function _fetchWithTimeout(url, ms = 10000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal })
+    .then(r => r.json())
+    .catch(() => ({}))
+    .finally(() => clearTimeout(timer));
+}
+
 async function loadBehavior() {
-  const [atkRes, statsRes] = await Promise.allSettled([
-    fetch('/api/attackers?limit=500').then(r => r.json()).catch(() => ({})),
-    fetch('/api/events/stats').then(r => r.json()).catch(() => ({})),
-  ]);
+  try {
+    const [atkRes, statsRes] = await Promise.allSettled([
+      _fetchWithTimeout('/api/attackers?limit=500'),
+      _fetchWithTimeout('/api/events/stats'),
+    ]);
 
-  const attackers = atkRes.status    === 'fulfilled' ? (atkRes.value.attackers || [])         : [];
-  const stats     = statsRes.status  === 'fulfilled' ? statsRes.value                         : {};
+    const attackers = atkRes.status    === 'fulfilled' ? (atkRes.value.attackers || []) : [];
+    const stats     = statsRes.status  === 'fulfilled' ? statsRes.value                 : {};
 
-  _behaviorAttackers = attackers;
+    _behaviorAttackers = attackers;
 
-  renderBehKPIs(attackers, stats);
-  renderIntentDist(attackers);
-  renderTierBreakdown(attackers);
-  renderAttackVectors(stats.by_attack_type || []);
-  renderTopCommands(attackers);
-  renderConfidenceDist(attackers);
-  renderBehaviorTable();
+    renderBehKPIs(attackers, stats);
+    renderIntentDist(attackers);
+    renderTierBreakdown(attackers);
+    renderAttackVectors(stats.by_attack_type || []);
+    renderTopCommands(attackers);
+    renderConfidenceDist(attackers);
+    renderBehaviorTable();
+  } catch (err) {
+    ['beh-intent-dist','beh-tiers','beh-attack-vectors','beh-top-commands','beh-confidence-dist'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<div class="feed-empty">Failed to load data — click Refresh to retry.</div>';
+    });
+    const tbody = document.getElementById('beh-profile-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:28px">Failed to load — click Refresh to retry.</td></tr>';
+  }
 }
 
 /* ── KPIs ────────────────────────────────────────────────────────────────── */

@@ -281,7 +281,7 @@ function navigate(section, el) {
     if (!state.loaded.mitre) { loadMitre(); state.loaded.mitre = true; }
   }
   if (section === 'behavior') {
-    if (!state.loaded.behavior) { loadBehavior(); state.loaded.behavior = true; }
+    loadBehavior(); state.loaded.behavior = true;
   }
   if (section === 'cbee'  && !state.loaded.cbee)  { loadCBEE();  state.loaded.cbee = true; }
   if (section === 'gadcf' && !state.loaded.gadcf) { initGADCF(); loadGADCF(); state.loaded.gadcf = true; }
