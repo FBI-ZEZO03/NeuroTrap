@@ -339,7 +339,7 @@ def _get_fhim():
         from src.fhim.aggregation_server import FedAvgServer
         db = get_db()
         if not hasattr(_get_fhim, "_instance"):
-            _get_fhim._instance = FedAvgServer(db if db else type("MockDB", (), {
+            _get_fhim._instance = FedAvgServer(db if db is not None else type("MockDB", (), {
                 "__getitem__": lambda s,k: type("C",(),{"find":lambda *a,**kw:[],"insert_one":lambda *a:None,"update_one":lambda *a,**kw:None})()
             })())
         return _get_fhim._instance

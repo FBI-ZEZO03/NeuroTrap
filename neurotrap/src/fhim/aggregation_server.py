@@ -125,9 +125,12 @@ class FedAvgServer:
 
     def get_round_history(self, limit: int = 10) -> list[dict]:
         try:
-            return list(self.db["fhim_rounds"].find({}, {"_id": 0}).sort("timestamp", -1).limit(limit))
+            rows = list(self.db["fhim_aggregation_rounds"].find({}, {"_id": 0}).sort("timestamp", -1).limit(limit))
+            if rows:
+                return rows
         except Exception:
-            return [r.to_dict() for r in self._round_history[-limit:]]
+            pass
+        return [r.to_dict() for r in reversed(self._round_history[-limit:])]
 
     def get_global_f1(self) -> float:
         nodes = list(self._nodes.values())
@@ -172,3 +175,19 @@ class FedAvgServer:
             self._nodes[nid].samples_contributed = 1800 + hash(nid) % 500
             self._nodes[nid].last_round = time.time() - (hash(nid) % 3600)
             self._nodes[nid].status = "synced"
+
+        # Seed demo round history
+        base = time.time()
+        for i, (f1_after, participants) in enumerate([
+            (0.81, 2), (0.84, 3), (0.85, 3), (0.86, 4),
+            (0.87, 4), (0.87, 4), (0.88, 4), (0.88, 4),
+        ]):
+            self._round_history.append(AggregationRound(
+                timestamp=base - (8 - i) * 10800,
+                participants=participants,
+                total_samples=participants * 500 + i * 200,
+                global_f1_before=f1_after - 0.02,
+                global_f1_after=f1_after,
+                avg_delta_norm=round(0.05 - i * 0.003, 4),
+                status="complete",
+            ))
