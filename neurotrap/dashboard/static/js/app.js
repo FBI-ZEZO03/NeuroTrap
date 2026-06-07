@@ -322,7 +322,10 @@ function refreshGeoMap() {
 async function loadGeoMapMarkers() {
   try {
     const d = await fetch('/api/attackers?limit=200').then(r => r.json());
-    (d.attackers || []).forEach(a => {
+    const attackers = d.attackers || [];
+    const el = document.getElementById('geomap-kpi-ips');
+    if (el) el.textContent = fmtNum(attackers.length);
+    attackers.forEach(a => {
       if (a.latitude && a.longitude) {
         const sev = a.threat_score >= 90 ? 'critical' : a.threat_score >= 70 ? 'high' : a.threat_score >= 40 ? 'medium' : 'low';
         _placeMarker(state.geoMap, a.latitude, a.longitude, a.src_ip, sev);
