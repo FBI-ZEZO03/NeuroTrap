@@ -205,7 +205,6 @@ function initApp() {
   fetchDashboard();
   fetchTopCountries();
   setInterval(() => { fetchDashboard(); fetchTopCountries(); }, 15000);
-  setTimeout(injectDemo, 1000);
 }
 
 function _renderTopCountries(d) {
@@ -991,39 +990,6 @@ function renderFHIMRounds(rounds) {
 /* ════════════════════════════════════════
    DEMO DATA (when no live MongoDB)
 ════════════════════════════════════════ */
-function injectDemo() {
-  const events = [
-    {src_ip:'91.234.56.78',dst_port:22,attack_type:'brute_force',severity:'high',honeypot_source:'cowrie',timestamp:Date.now()/1000-10},
-    {src_ip:'185.220.101.42',dst_port:22,attack_type:'brute_force',severity:'critical',honeypot_source:'cowrie',timestamp:Date.now()/1000-8},
-    {src_ip:'45.33.32.156',dst_port:80,attack_type:'port_scan',severity:'low',honeypot_source:'scapy',timestamp:Date.now()/1000-6},
-    {src_ip:'198.51.100.42',dst_port:22,attack_type:'command_injection',severity:'high',honeypot_source:'cowrie',timestamp:Date.now()/1000-4},
-    {src_ip:'103.21.244.0',dst_port:445,attack_type:'malware_upload',severity:'critical',honeypot_source:'dionaea',timestamp:Date.now()/1000-2},
-    {src_ip:'2.56.57.90',dst_port:3306,attack_type:'brute_force',severity:'medium',honeypot_source:'cowrie',timestamp:Date.now()/1000-1},
-  ];
-  // only inject if feed still empty (no live data)
-  if (state.feedItems.length === 0) {
-    events.forEach(e=>{ addFeed(e); pushTimeline(); });
-    if (document.getElementById('kpi-events').textContent === '0') {
-      animateVal('kpi-events',0,1247,800); animateVal('kpi-sessions',0,3,600);
-      animateVal('kpi-blocked',0,8,700); animateVal('kpi-envs',0,3,500);
-      const tl=document.getElementById('kpi-threat-level'); tl.textContent='HIGH'; tl.style.color='#f59e0b';
-    }
-    if (document.getElementById('attackers-tbody').children.length <= 1) {
-      renderAttackerTable('attackers-tbody',[
-        {src_ip:'185.220.101.42',threat_score:94,classified_intent:'malware_deployment',attacker_tier:'advanced_human',ttps:[{},{},{},{},{}],last_seen:Date.now()/1000-60},
-        {src_ip:'91.234.56.78',threat_score:78.5,classified_intent:'credential_harvesting',attacker_tier:'automated_bot',ttps:[{},{},{}],last_seen:Date.now()/1000-120},
-        {src_ip:'198.51.100.42',threat_score:52,classified_intent:'reconnaissance',attacker_tier:'beginner',ttps:[{}],last_seen:Date.now()/1000-240},
-      ],'attacker-count');
-    }
-    setTimeout(()=>{
-      addMarker(51.5074,-0.1278,'185.220.101.42','critical');
-      addMarker(40.7128,-74.006,'45.33.32.156','low');
-      addMarker(35.6762,139.6503,'103.21.244.0','critical');
-      addMarker(48.8566,2.3522,'91.234.56.78','high');
-      addMarker(55.7558,37.6176,'2.56.57.90','medium');
-    },600);
-  }
-}
 function animateVal(id, from, to, dur) {
   const el = document.getElementById(id); if (!el) return;
   const start = performance.now();
