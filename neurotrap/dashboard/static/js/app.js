@@ -484,20 +484,9 @@ function clearEventsPage() {
    Shows cached localStorage data instantly,
    then fetches fresh data in the background.
 ════════════════════════════════════════ */
-const LS_TTL = 5 * 60 * 1000; // 5 min localStorage TTL
-
 async function _sfetch(url, onData) {
-  const key = 'nt_' + url;
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      const { d, ts } = JSON.parse(raw);
-      if (Date.now() - ts < LS_TTL) onData(d); // serve stale immediately
-    }
-  } catch (_) {}
   try {
     const fresh = await fetch(url).then(r => r.json());
-    localStorage.setItem(key, JSON.stringify({ d: fresh, ts: Date.now() }));
     onData(fresh);
   } catch (_) {}
 }
