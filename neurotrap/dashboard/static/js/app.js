@@ -168,6 +168,7 @@ const state = {
   feedItems: [],
   feedPage: 0,
   eventsFeedPage: 0,
+  pendingEvents: 0,
   timelineBuckets: new Array(60).fill(0),
   selectedIP: null,
   loaded: { intel:false, cbee:false, gadcf:false, fhim:false, ashrta:false, twin:false, soc:false, attackers:false, responses:false },
@@ -351,6 +352,16 @@ function setWs(c) {
 ════════════════════════════════════════ */
 const FEED_PG = 20;
 const EVENTS_PG = 50;
+const TZ_OFFSET_MS = 3 * 3600 * 1000; // UTC+3
+
+function fmtTs(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts * 1000 + TZ_OFFSET_MS);
+  const date = d.toISOString().slice(0, 10);
+  const time = d.toISOString().slice(11, 19);
+  const todayLocal = new Date(Date.now() + TZ_OFFSET_MS).toISOString().slice(0, 10);
+  return date === todayLocal ? time : `${date} ${time}`;
+}
 
 function _filteredFeed(typeId, sevId) {
   const ft = document.getElementById(typeId)?.value || '';
@@ -358,24 +369,34 @@ function _filteredFeed(typeId, sevId) {
   return state.feedItems.filter(e => (!ft || e.attack_type === ft) && (!fs || e.severity === fs));
 }
 
+function _updateNewBadge() {
+  const badge = document.getElementById('feed-new-badge');
+  if (!badge) return;
+  if (state.pendingEvents > 0) {
+    badge.textContent = `▲ ${state.pendingEvents} new event${state.pendingEvents > 1 ? 's' : ''} — click to refresh`;
+    badge.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function flushFeed() {
+  state.pendingEvents = 0;
+  state.feedPage = 0;
+  _updateNewBadge();
+  renderMainFeed();
+}
+
 function addFeed(e) {
   state.feedItems.unshift(e);
   if (state.feedItems.length > 5000) state.feedItems.pop();
-  renderMainFeed();
-  if (document.getElementById('sec-events').classList.contains('active')) renderEventsPage();
+  state.pendingEvents++;
+  _updateNewBadge();
 }
 
 function buildFeedItem(e) {
   const icon = ATTACK_ICONS[e.attack_type] || ATTACK_ICONS.unknown;
   const sev = e.severity || 'low';
-  let ts = '—';
-  if (e.timestamp) {
-    const d = new Date(e.timestamp * 1000);
-    const date = d.toISOString().slice(0, 10);
-    const time = d.toISOString().slice(11, 19);
-    const today = new Date().toISOString().slice(0, 10);
-    ts = date === today ? time : `${date} ${time}`;
-  }
   const div = document.createElement('div');
   div.className = `feed-item ${sev}`;
   div.innerHTML = `
@@ -389,7 +410,7 @@ function buildFeedItem(e) {
       <span class="feed-src">[${e.honeypot_source || '?'}]</span>
     </div>
     <div class="feed-time">
-      <i class="fa-regular fa-clock"></i>${ts}
+      <i class="fa-regular fa-clock"></i>${fmtTs(e.timestamp)} UTC+3
     </div>`;
   div.onclick = () => openModal(e.src_ip);
   return div;
@@ -631,7 +652,7 @@ async function loadResponses() {
       tr.innerHTML = `<td><span style="color:${c};font-weight:600">${(r.action||'').replace(/_/g,' ')}</span></td>
         <td style="color:var(--cyan)">${r.src_ip||'—'}</td>
         <td>${r.threat_score!=null?r.threat_score.toFixed(0):'—'}</td>
-        <td style="color:var(--t3)">${r.timestamp?new Date(r.timestamp*1000).toLocaleString():'—'}</td>`;
+        <td style="color:var(--t3)">${fmtTs(r.timestamp)} UTC+3</td>`;
       tb.appendChild(tr);
     });
   } catch(e) {}
@@ -653,8 +674,8 @@ async function openModal(ip) {
   setText('modal-intent',(p.classified_intent||'—').replace(/_/g,' '));
   setText('modal-tier',(p.attacker_tier||'—').replace(/_/g,' '));
   setText('modal-sessions',`${p.session_count||0} sessions · ${p.total_commands||0} cmds`);
-  setText('modal-first',p.first_seen?new Date(p.first_seen*1000).toLocaleString():'—');
-  setText('modal-last',p.last_seen?new Date(p.last_seen*1000).toLocaleString():'—');
+  setText('modal-first', fmtTs(p.first_seen) + (p.first_seen ? ' UTC+3' : ''));
+  setText('modal-last',  fmtTs(p.last_seen)  + (p.last_seen  ? ' UTC+3' : ''));
   setText('modal-score-val',(p.threat_score||0).toFixed(0));
   const g = document.getElementById('modal-ttps');
   const ttps = p.ttps||[];
@@ -967,6 +988,7 @@ function injectDemo() {
   // only inject if feed still empty (no live data)
   if (state.feedItems.length === 0) {
     events.forEach(e=>{ addFeed(e); pushTimeline(); });
+    flushFeed();
     if (document.getElementById('kpi-events').textContent === '0') {
       animateVal('kpi-events',0,1247,800); animateVal('kpi-sessions',0,3,600);
       animateVal('kpi-blocked',0,8,700); animateVal('kpi-envs',0,3,500);
