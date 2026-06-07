@@ -208,32 +208,30 @@ function initApp() {
   setTimeout(injectDemo, 1000);
 }
 
-async function fetchTopCountries() {
+function _renderTopCountries(d) {
   const el = document.getElementById('dash-top-countries');
   if (!el) return;
-  try {
-    const d = await fetch('/api/intel').then(r => r.json());
-    const countries = (d.top_countries || []).slice(0, 10);
-    if (!countries.length) {
-      el.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-globe" style="font-size:22px;color:var(--border2)"></i>No attacker data yet</div>';
-      return;
-    }
-    const max = countries[0].count || 1;
-    el.innerHTML = countries.map((c, i) => {
-      const pct = Math.round((c.count / max) * 100);
-      const color = i === 0 ? '#f43f5e' : i === 1 ? '#f59e0b' : i < 4 ? '#a855f7' : '#475569';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-dim)">
-        <span style="color:${color};font-weight:700;font-size:11px;width:18px;text-align:right">${i + 1}</span>
-        <span style="flex:1;color:var(--text-primary);font-size:12px">${c.country}</span>
-        <div style="width:70px;height:5px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
-        </div>
-        <span style="color:var(--text-muted);font-size:11px;width:28px;text-align:right">${c.count}</span>
-      </div>`;
-    }).join('');
-  } catch (_) {
+  const countries = (d.top_countries || []).slice(0, 10);
+  if (!countries.length) {
     el.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-globe" style="font-size:22px;color:var(--border2)"></i>No attacker data yet</div>';
+    return;
   }
+  const max = countries[0].count || 1;
+  el.innerHTML = countries.map((c, i) => {
+    const pct = Math.round((c.count / max) * 100);
+    const color = i === 0 ? '#f43f5e' : i === 1 ? '#f59e0b' : i < 4 ? '#a855f7' : '#475569';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-dim)">
+      <span style="color:${color};font-weight:700;font-size:11px;width:18px;text-align:right">${i + 1}</span>
+      <span style="flex:1;color:var(--text-primary);font-size:12px">${c.country}</span>
+      <div style="width:70px;height:5px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
+      </div>
+      <span style="color:var(--text-muted);font-size:11px;width:28px;text-align:right">${c.count}</span>
+    </div>`;
+  }).join('');
+}
+async function fetchTopCountries() {
+  await _sfetch('/api/intel', _renderTopCountries);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -482,42 +480,60 @@ function clearEventsPage() {
 }
 
 /* ════════════════════════════════════════
+   STALE-WHILE-REVALIDATE FETCH
+   Shows cached localStorage data instantly,
+   then fetches fresh data in the background.
+════════════════════════════════════════ */
+const LS_TTL = 5 * 60 * 1000; // 5 min localStorage TTL
+
+async function _sfetch(url, onData) {
+  const key = 'nt_' + url;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const { d, ts } = JSON.parse(raw);
+      if (Date.now() - ts < LS_TTL) onData(d); // serve stale immediately
+    }
+  } catch (_) {}
+  try {
+    const fresh = await fetch(url).then(r => r.json());
+    localStorage.setItem(key, JSON.stringify({ d: fresh, ts: Date.now() }));
+    onData(fresh);
+  } catch (_) {}
+}
+
+/* ════════════════════════════════════════
    DASHBOARD DATA
 ════════════════════════════════════════ */
 async function fetchDashboard() {
   await Promise.allSettled([fetchStats(), fetchAttackers(), fetchEnvs()]);
 }
+function applyStats(d) {
+  if (d.total_events == null) return;
+  setText('kpi-events', fmtNum(d.total_events));
+  setText('kpi-sessions', fmtNum(d.active_sessions));
+  setText('kpi-blocked', fmtNum(d.blocked_ips));
+  updateBreakdown(d.by_attack_type);
+  const lvl = d.blocked_ips>5||d.active_sessions>10?'CRITICAL':d.active_sessions>3?'HIGH':d.total_events>0?'MEDIUM':'LOW';
+  const colors = {CRITICAL:'#f43f5e',HIGH:'#f59e0b',MEDIUM:'#a855f7',LOW:'#10b981'};
+  const el = document.getElementById('kpi-threat-level'); el.textContent = lvl; el.style.color = colors[lvl];
+}
 async function fetchStats() {
-  try {
-    const d = await (await fetch('/api/events/stats')).json();
-    if (d.total_events != null) {
-      setText('kpi-events', fmtNum(d.total_events));
-      setText('kpi-sessions', fmtNum(d.active_sessions));
-      setText('kpi-blocked', fmtNum(d.blocked_ips));
-      updateBreakdown(d.by_attack_type);
-      const lvl = d.blocked_ips>5||d.active_sessions>10?'CRITICAL':d.active_sessions>3?'HIGH':d.total_events>0?'MEDIUM':'LOW';
-      const colors = {CRITICAL:'#f43f5e',HIGH:'#f59e0b',MEDIUM:'#a855f7',LOW:'#10b981'};
-      const el = document.getElementById('kpi-threat-level'); el.textContent = lvl; el.style.color = colors[lvl];
-    }
-  } catch(e) {}
+  await _sfetch('/api/events/stats', applyStats);
 }
 async function fetchAttackers() {
-  try {
-    const d = await (await fetch('/api/attackers?limit=10')).json();
+  await _sfetch('/api/attackers?limit=10', d => {
     if ((d.attackers||[]).length) renderAttackerTable('attackers-tbody', d.attackers, 'attacker-count');
-  } catch(e) {}
+  });
 }
 async function fetchEnvs() {
-  try {
-    const [ed, hd] = await Promise.all([
-      fetch('/api/environments').then(r=>r.json()),
-      fetch('/api/honeypots').then(r=>r.json()),
-    ]);
-    const envs = ed.environments || [];
-    const activeSensors = (hd.sensors || []).filter(s => s.status === 'online').length;
-    setText('kpi-envs', fmtNum(activeSensors));
-    renderEnvCards('env-cards', envs);
-  } catch(e) {}
+  await Promise.allSettled([
+    _sfetch('/api/environments', ed => renderEnvCards('env-cards', ed.environments || [])),
+    _sfetch('/api/honeypots', hd => {
+      const n = (hd.sensors || []).filter(s => s.status === 'online').length;
+      setText('kpi-envs', fmtNum(n));
+    }),
+  ]);
 }
 
 function renderAttackerTable(tbodyId, attackers, countId) {

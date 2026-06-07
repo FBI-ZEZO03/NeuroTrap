@@ -31,6 +31,37 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ── In-memory response cache ───────────────────────────────────────────────────
+_CACHE: dict = {}
+_CACHE_TTL = 30  # seconds
+
+def _cache_get(key: str):
+    entry = _CACHE.get(key)
+    if entry and (time.time() - entry[1]) < _CACHE_TTL:
+        return entry[0]
+    return None
+
+def _cache_set(key: str, data):
+    _CACHE[key] = (data, time.time())
+    return data
+
+def cached(key: str):
+    """Decorator: serve cached JSON for up to _CACHE_TTL seconds."""
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            hit = _cache_get(key)
+            if hit is not None:
+                return jsonify(hit)
+            result = fn(*args, **kwargs)
+            try:
+                _cache_set(key, result.get_json())
+            except Exception:
+                pass
+            return result
+        return wrapper
+    return decorator
+
 app = Flask(
     __name__,
     template_folder=os.path.join(os.path.dirname(__file__), "../../dashboard/templates"),
@@ -235,6 +266,7 @@ def get_events():
 
 
 @app.route("/api/events/stats", methods=["GET"])
+@cached("events_stats")
 def get_stats():
     db = get_db()
     if db is None:
@@ -283,6 +315,7 @@ def get_stats():
 # ── Attacker profiles API ──────────────────────────────────────────────────────
 
 @app.route("/api/attackers", methods=["GET"])
+@cached("attackers")
 def get_attackers():
     db = get_db()
     if db is None:
@@ -338,6 +371,7 @@ def manual_block():
 
 
 @app.route("/api/response/log", methods=["GET"])
+@cached("response_log")
 def get_response_log():
     db = get_db()
     if db is None:
@@ -349,6 +383,7 @@ def get_response_log():
 # ── Deception environments API ────────────────────────────────────────────────
 
 @app.route("/api/environments", methods=["GET"])
+@cached("environments")
 def get_environments():
     db = get_db()
     if db is None:
@@ -416,6 +451,7 @@ def get_honeypot_ip_detail(src_ip):
 
 
 @app.route("/api/honeypots", methods=["GET"])
+@cached("honeypots")
 def get_honeypots():
     """Per-sensor capture counts plus a roll-up of unique attacker IPs."""
     db = get_db()
@@ -923,6 +959,7 @@ def _resolve_countries(db, ips: list[str]) -> dict[str, str]:
 
 
 @app.route("/api/intel", methods=["GET"])
+@cached("intel")
 def get_threat_intel():
     db = get_db()
     now = time.time()
