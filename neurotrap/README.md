@@ -125,12 +125,11 @@ MongoDB has a static IP `172.25.0.10` on `monitor-bridge` so the packet monitor 
 | Data layer | `src/db/` | MongoDB + embedded SQLite fallback |
 | Detection | `src/detection/` | Packet capture, log ingestion, session builder |
 | Behavior | `src/behavior/` | ML classifier, TTP extractor, attacker profiles |
-| Deception | `src/deception/` | Dynamic honeypot generator, fake data |
+| Deception | `src/deception/` | Dynamic honeypot generator, fake credentials |
 | Response | `src/response/` | Autonomous action engine |
 | CBEE | `src/cbee/` | Cognitive Bias Exploitation Engine |
 | GADCF | `src/gadcf/` | Generative Attacker-Driven Content Fabrication |
 | FHIM | `src/fhim/` | Federated Honeypot Intelligence Mesh |
-| ASHRTA | `src/ashrta/` | Adaptive Self-Hardening & Red Team Automation |
 | Digital Twin | `src/twin/` | Attacker behavioral twin + kill-chain predictor |
 | SOC Analyst | `src/soc_analyst/` | AI-powered triage and reporting |
 | API | `src/api/` | Flask REST API + WebSocket backend |
@@ -140,19 +139,62 @@ MongoDB has a static IP `172.25.0.10` on `monitor-bridge` so the packet monitor 
 
 ## Dashboard Sections
 
+### Operations
 | Section | What it shows |
 |---------|---------------|
-| Dashboard | KPI overview: events, active sessions, threat level, attack breakdown |
+| Dashboard | KPI overview: events, active sessions, threat level, attack type breakdown |
 | Threat Actors | Attacker profiles with threat scores, TTPs, intent classification |
-| Live Events | Real-time event feed from all honeypots |
-| Honeypots | Live sensor hits, recent attacker sessions, dynamic deception environments |
-| Response Log | Autonomous response actions |
-| CBEE | Cognitive bias profiles, bait injections, live session scorer |
-| GADCF | Generative fake content assets |
-| FHIM | Federated learning node status |
-| ASHRTA | Hardening reports and automated patches |
-| Digital Twin | Attacker behavioral models and kill-chain forecasts |
-| SOC Analyst | AI triage queue, incident reports, natural-language Q&A |
+| Live Events | Real-time event feed from all honeypots with pagination |
+| Honeypots | Live sensor hit counts, recent attacker sessions, active deception environments |
+| Response Log | Autonomous response actions (block, isolate, slow-redirect, log) |
+
+### Intelligence
+| Section | What it shows |
+|---------|---------------|
+| Threat Intel | IOC feed, top source countries, top targeted ports, attack type distribution |
+| Geo Map | Live global attack origin map with animated arcs, threat-level markers, IP grid |
+| MITRE ATT&CK | Full-viewport heatmap navigator, top observed techniques, technique detail panel |
+| Behavior Analysis | ML intent distribution, tier breakdown, top commands, classified profiles table |
+
+### Innovations
+| Section | What it shows |
+|---------|---------------|
+| CBEE | Cognitive bias profiles per attacker, bait injection log, live session scorer |
+| GADCF | Generative fake content assets (env files, emails, code repos, wiki pages, DB dumps) |
+| FHIM | Federated learning node status, FedAvg rounds, differential privacy metrics |
+| ADT | Attacker digital twins, kill-chain progression, predicted next moves, forward simulation |
+| AI Analyst | AI triage queue, per-IP incident reports, natural-language SOC Q&A |
+
+---
+
+## Threat Score Calculation
+
+Threat score (0–100) is computed on every session update in `src/behavior/attacker_profile.py`:
+
+```
+threat_score = (ML confidence × 40) + TTP score + tier bonus
+```
+
+| Component | Range | Details |
+|-----------|-------|---------|
+| ML confidence | 0–40 | Classifier confidence (0–1) × 40 |
+| TTP score | 0–40 | Sum of tactic weights × confidence (one per tactic) |
+| Tier bonus | 0–25 | beginner: 0 · automated_bot: +10 · advanced_human: +25 |
+
+**Tactic weights** (used in TTP score):
+
+| Tactic | Weight |
+|--------|--------|
+| Impact | 40 |
+| Privilege Escalation | 35 |
+| Credential Access | 30 |
+| Lateral Movement | 25 |
+| Persistence | 20 |
+| Command and Control | 15 |
+| Defense Evasion | 10 |
+| Discovery | 5 |
+
+**Penalty:** if intent is `reconnaissance` and `session_count < 3`, score × 0.6 (likely port scanner).
 
 ---
 
@@ -223,6 +265,23 @@ recon → brute-force → login + commands → malware upload → lateral moveme
 
 ---
 
+## Development Workflow
+
+The `./src` and `./dashboard` directories are bind-mounted into the API container, so file changes are picked up immediately.
+
+| Change type | What to do |
+|-------------|-----------|
+| HTML templates (`dashboard/templates/`) | Normal browser refresh |
+| CSS / JS (`dashboard/static/`) | Normal browser refresh (caching disabled) |
+| Python source (`src/`) | `docker restart neurotrap-api` |
+
+When bumping static assets after major changes, increment the version query string in `index.html`:
+```html
+<link rel="stylesheet" href="/static/css/main.css?v=3"/>
+```
+
+---
+
 ## Key Performance Targets
 
 | Metric | Target |
@@ -238,6 +297,18 @@ recon → brute-force → login + commands → malware upload → lateral moveme
 
 Python 3.11 · Docker Compose · Cowrie · OpenCanary · Galah · Scapy ·
 scikit-learn · spaCy · Flask · Flask-SocketIO · MongoDB · Chart.js · Leaflet.js
+
+---
+
+## Changelog
+
+### Latest
+- **Removed ASHRTA module** — `src/ashrta/`, API routes, dashboard section, and JS all deleted
+- **MITRE ATT&CK page** — now fills full viewport height with scrollable technique list
+- **Sidebar** — removed numbered badges from Innovations nav items
+- **Geo Map** — new full-page section under Intelligence with live attack origin markers and IP grid
+- **Static file caching disabled** — `SEND_FILE_MAX_AGE_DEFAULT = 0` + `TEMPLATES_AUTO_RELOAD = True` for faster development iteration
+- **Threat Intel page** — removed duplicate global map (moved to dedicated Geo Map section)
 
 ---
 
