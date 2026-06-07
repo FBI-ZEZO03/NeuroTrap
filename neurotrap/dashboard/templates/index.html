@@ -4,9 +4,15 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>NeuroTrap CADN — Security Operations Center</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="/static/css/main.css"/>
+<link rel="stylesheet" href="/static/css/main.css?v=2"/>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com"/>
+<link rel="preconnect" href="https://unpkg.com"/>
+<link rel="preconnect" href="https://cdn.jsdelivr.net"/>
+<link rel="preconnect" href="https://cdn.socket.io"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" media="print" onload="this.media='all'"/>
+<noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/></noscript>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'"/>
+<noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/></noscript>
 </head>
 <body>
 <div class="bg-dots" aria-hidden="true"></div>
@@ -59,38 +65,36 @@
       <i class="fa-solid fa-map-location-dot nav-icon"></i>
       Geo Map
     </div>
+    <div class="nav-item" data-section="mitre" onclick="navigate('mitre',this)">
+      <i class="fa-solid fa-shield-halved nav-icon"></i>
+      MITRE ATT&amp;CK
+    </div>
+    <div class="nav-item" data-section="behavior" onclick="navigate('behavior',this)">
+      <i class="fa-solid fa-microscope nav-icon"></i>
+      Behavior Analysis
+    </div>
 
     <div class="nav-label">Innovations</div>
 
     <div class="nav-item" data-section="cbee" onclick="navigate('cbee',this)">
       <i class="fa-solid fa-brain nav-icon"></i>
       CBEE
-      <span class="nav-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)">01</span>
     </div>
     <div class="nav-item" data-section="gadcf" onclick="navigate('gadcf',this)">
       <i class="fa-solid fa-wand-magic-sparkles nav-icon"></i>
       GADCF
-      <span class="nav-badge" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3)">02</span>
     </div>
     <div class="nav-item" data-section="fhim" onclick="navigate('fhim',this)">
       <i class="fa-solid fa-network-wired nav-icon"></i>
       FHIM
-      <span class="nav-badge" style="background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3)">03</span>
-    </div>
-    <div class="nav-item" data-section="ashrta" onclick="navigate('ashrta',this)">
-      <i class="fa-solid fa-robot nav-icon"></i>
-      ASHRTA
-      <span class="nav-badge" style="background:rgba(244,63,94,0.15);color:#fda4af;border:1px solid rgba(244,63,94,0.3)">04</span>
     </div>
     <div class="nav-item" data-section="twin" onclick="navigate('twin',this)">
       <i class="fa-solid fa-clone nav-icon"></i>
       ADT
-      <span class="nav-badge" style="background:rgba(56,189,248,0.15);color:#7dd3fc;border:1px solid rgba(56,189,248,0.3)">05</span>
     </div>
     <div class="nav-item" data-section="soc" onclick="navigate('soc',this)">
       <i class="fa-solid fa-user-shield nav-icon"></i>
       AI Analyst
-      <span class="nav-badge" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3)">06</span>
     </div>
   </nav>
 
@@ -463,6 +467,105 @@
           <div class="feed-empty"><i class="fa-solid fa-chart-simple"></i>Loading…</div>
         </div>
       </div>
+
+    </section>
+
+    <!-- ═══════════════════════════
+         MITRE ATT&CK
+    ═══════════════════════════ -->
+    <section class="section" id="sec-mitre">
+      <div class="page-header">
+        <div class="page-title">MITRE ATT&amp;CK</div>
+        <div class="page-subtitle">Live TTP coverage map — observed techniques from real attacker sessions</div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="inno-kpi-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card" style="--kc:#f43f5e">
+          <div class="kpi-icon"><i class="fa-solid fa-crosshairs"></i></div>
+          <div><div class="kpi-val" id="mitre-kpi-techs">—</div><div class="kpi-lbl">Techniques</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#f59e0b">
+          <div class="kpi-icon"><i class="fa-solid fa-layer-group"></i></div>
+          <div><div class="kpi-val" id="mitre-kpi-tactics" style="color:#f59e0b">—</div><div class="kpi-lbl">Tactics Covered</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#6366f1">
+          <div class="kpi-icon"><i class="fa-solid fa-bolt"></i></div>
+          <div><div class="kpi-val" id="mitre-kpi-hits" style="color:#6366f1">—</div><div class="kpi-lbl">Total TTP Hits</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#10b981">
+          <div class="kpi-icon"><i class="fa-solid fa-trophy"></i></div>
+          <div><div class="kpi-val" id="mitre-kpi-top" style="color:#10b981;font-size:12px">—</div><div class="kpi-lbl">Top Tactic</div></div>
+        </div>
+      </div>
+
+      <!-- Navigator heatmap -->
+      <div class="card mb-4">
+        <div class="card-head">
+          <i class="fa-solid fa-table-cells" style="color:#f43f5e"></i>
+          ATT&amp;CK Navigator
+          <span id="mitre-last-updated" style="margin-left:8px;font-size:11px;color:var(--text-muted);font-weight:400"></span>
+          <div class="live-badge" style="margin-left:auto"><div class="live-dot"></div>LIVE</div>
+          <button class="btn btn-sm btn-secondary" style="margin-left:8px" onclick="loadMitre()">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+        </div>
+        <div id="mitre-heatmap" style="overflow-x:auto;padding:20px 20px 8px">
+          <div class="feed-empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading…</div>
+        </div>
+        <div style="padding:4px 20px 10px;font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:16px">
+          <span>Intensity:</span>
+          <span style="display:flex;align-items:center;gap:4px">
+            <span style="width:12px;height:12px;background:#f43f5e22;border:1px solid #f43f5e44;border-radius:2px;display:inline-block"></span>Low
+          </span>
+          <span style="display:flex;align-items:center;gap:4px">
+            <span style="width:12px;height:12px;background:#f43f5e77;border:1px solid #f43f5e88;border-radius:2px;display:inline-block"></span>Medium
+          </span>
+          <span style="display:flex;align-items:center;gap:4px">
+            <span style="width:12px;height:12px;background:#f43f5ecc;border:1px solid #f43f5eee;border-radius:2px;display:inline-block"></span>High
+          </span>
+          <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">Click any technique for details</span>
+        </div>
+      </div>
+
+      <!-- Bottom: Top Techniques + Detail Panel -->
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:stretch;flex:1">
+
+        <!-- Top Techniques table -->
+        <div class="card" style="display:flex;flex-direction:column">
+          <div class="card-head">
+            <i class="fa-solid fa-ranking-star" style="color:#f59e0b"></i>
+            Top Observed Techniques
+          </div>
+          <div style="padding:0 16px 4px;display:flex;flex-direction:column;flex:1">
+            <div style="display:grid;grid-template-columns:46px 1fr 100px 80px 36px;gap:0;padding:6px 0;border-bottom:2px solid var(--border-dim)">
+              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">ID</span>
+              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Technique</span>
+              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Tactic</span>
+              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Coverage</span>
+              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;text-align:right">Hits</span>
+            </div>
+            <div id="mitre-technique-list" style="flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border-dim) transparent">
+              <div class="feed-empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Technique Detail Panel -->
+        <div class="card" style="align-self:start;position:sticky;top:16px">
+          <div class="card-head">
+            <i class="fa-solid fa-file-shield" style="color:#6366f1"></i>
+            Technique Detail
+          </div>
+          <div id="mitre-detail-panel" style="padding:16px">
+            <div class="feed-empty" style="flex-direction:column;gap:10px;padding:32px 0">
+              <i class="fa-solid fa-hand-pointer" style="font-size:26px;color:var(--border-dim)"></i>
+              <span style="font-size:12px;color:var(--text-muted)">Click a technique to inspect</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </section>
 
     <!-- ═══════════════════════════
@@ -471,34 +574,202 @@
     <section class="section" id="sec-geomap">
       <div class="page-header">
         <div class="page-title">Geo Map</div>
-        <div class="page-subtitle">Live geographic view of all attack origins</div>
+        <div class="page-subtitle">Real-time global attack origin tracker · Oberasbach, Bavaria DE server · Auto-refreshes every 30s</div>
       </div>
-      <div class="inno-kpi-row" style="margin-bottom:16px">
+
+      <!-- KPIs -->
+      <div class="inno-kpi-row" style="grid-template-columns:repeat(4,1fr)">
         <div class="kpi-card" style="--kc:#22d3ee">
           <div class="kpi-icon"><i class="fa-solid fa-crosshairs"></i></div>
-          <div>
-            <div class="kpi-val" id="geomap-kpi-ips">—</div>
-            <div class="kpi-lbl">IPs of the Attacker</div>
-          </div>
+          <div><div class="kpi-val" id="geo-kpi-total">—</div><div class="kpi-lbl">Total Attackers</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#f59e0b">
+          <div class="kpi-icon"><i class="fa-solid fa-earth-americas"></i></div>
+          <div><div class="kpi-val" id="geo-kpi-countries" style="color:#f59e0b">—</div><div class="kpi-lbl">Countries</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#f43f5e">
+          <div class="kpi-icon"><i class="fa-solid fa-bolt"></i></div>
+          <div><div class="kpi-val" id="geo-kpi-active" style="color:#f43f5e">—</div><div class="kpi-lbl">High Threat</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#10b981">
+          <div class="kpi-icon"><i class="fa-solid fa-location-dot"></i></div>
+          <div><div class="kpi-val" id="geo-kpi-mapped" style="color:#10b981">—</div><div class="kpi-lbl">Geo-Located</div></div>
         </div>
       </div>
-      <div class="card" style="display:flex;flex-direction:column">
+
+      <!-- Full-width live map -->
+      <div class="card mb-4" style="overflow:hidden">
         <div class="card-head">
-          <i class="fa-solid fa-map-location-dot" style="color:#22d3ee"></i>
-          Global Attack Origins
-          <div class="live-badge" style="margin-left:0"><div class="live-dot"></div>LIVE</div>
-          <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="refreshGeoMap()">
+          <i class="fa-solid fa-satellite-dish" style="color:#22d3ee"></i>
+          Global Attack Tracker
+          <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+          <span id="geo-last-updated" style="margin-left:4px;font-size:11px;color:var(--text-muted);font-weight:400"></span>
+          <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="reloadGeoMap()">
             <i class="fa-solid fa-rotate"></i> Refresh
           </button>
         </div>
-        <div class="card-body" style="padding:0;position:relative">
-          <div id="geomap-map" style="height:600px;width:100%;border-radius:0 0 var(--radius) var(--radius)"></div>
-          <div class="map-legend" style="bottom:24px;right:16px">
-            <div class="map-legend-item"><div class="map-legend-dot" style="background:#f43f5e"></div>Critical</div>
-            <div class="map-legend-item"><div class="map-legend-dot" style="background:#f59e0b"></div>High</div>
-            <div class="map-legend-item"><div class="map-legend-dot" style="background:#a855f7"></div>Medium</div>
-            <div class="map-legend-item"><div class="map-legend-dot" style="background:#334155"></div>Low</div>
+        <div style="position:relative">
+          <div class="geo-scan-line"></div>
+          <div id="geomap-map" style="height:680px;width:100%"></div>
+          <!-- Legend overlay -->
+          <div class="geo-legend-overlay">
+            <div style="font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Threat Level</div>
+            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#f43f5e;box-shadow:0 0 6px #f43f5e88"></div>Critical (90+)</div>
+            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#f59e0b;box-shadow:0 0 6px #f59e0b88"></div>High (70–89)</div>
+            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#a855f7;box-shadow:0 0 6px #a855f788"></div>Medium (40–69)</div>
+            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#22d3ee;box-shadow:0 0 6px #22d3ee88"></div>Low (&lt;40)</div>
+            <div style="border-top:1px solid rgba(255,255,255,0.07);margin-top:4px;padding-top:6px">
+              <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#10b981;box-shadow:0 0 8px #10b98188"></div>NeuroTrap Server</div>
+            </div>
           </div>
+          <!-- Bottom stats strip -->
+          <div class="geo-stats-strip">
+            <i class="fa-solid fa-circle" style="color:#10b981;font-size:7px;margin-right:4px"></i>
+            Server: Oberasbach, Bavaria DE
+            <span style="margin:0 10px;opacity:0.25">|</span>
+            <span id="geo-stat-total">—</span>&nbsp;attackers tracked
+            <span style="margin:0 10px;opacity:0.25">|</span>
+            <span id="geo-stat-countries">—</span>&nbsp;countries
+            <span style="margin:0 10px;opacity:0.25">|</span>
+            Last update: <span id="geo-stat-time" style="color:var(--text-primary);margin-left:4px">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attacker IP grid -->
+      <div class="card">
+        <div class="card-head">
+          <i class="fa-solid fa-crosshairs" style="color:#22d3ee"></i>
+          Attackers
+          <span id="geomap-ip-count" style="margin-left:6px;font-size:11px;color:var(--text-muted);font-weight:400"></span>
+          <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="reloadGeoMap()">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+        </div>
+        <div id="geomap-ip-list">
+          <div class="feed-empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading…</div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ═══════════════════════════
+         BEHAVIOR ANALYSIS
+    ═══════════════════════════ -->
+    <section class="section" id="sec-behavior">
+      <div class="page-header">
+        <div class="page-title">Behavior Analysis</div>
+        <div class="page-subtitle">ML-classified attacker intent · Session patterns · Command forensics · Confidence scoring</div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="inno-kpi-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card" style="--kc:#22d3ee">
+          <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
+          <div><div class="kpi-val" id="beh-kpi-profiles">—</div><div class="kpi-lbl">Profiles Analyzed</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#f59e0b">
+          <div class="kpi-icon"><i class="fa-solid fa-layer-group"></i></div>
+          <div><div class="kpi-val" id="beh-kpi-sessions" style="color:#f59e0b">—</div><div class="kpi-lbl">Sessions Classified</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#a855f7">
+          <div class="kpi-icon"><i class="fa-solid fa-terminal"></i></div>
+          <div><div class="kpi-val" id="beh-kpi-commands" style="color:#a855f7">—</div><div class="kpi-lbl">Commands Captured</div></div>
+        </div>
+        <div class="kpi-card" style="--kc:#10b981">
+          <div class="kpi-icon"><i class="fa-solid fa-brain"></i></div>
+          <div><div class="kpi-val" id="beh-kpi-confidence" style="color:#10b981">—</div><div class="kpi-lbl">Avg ML Confidence</div></div>
+        </div>
+      </div>
+
+      <!-- Row 1: Intent Distribution + Tier Breakdown -->
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:16px;margin-bottom:16px">
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-solid fa-brain" style="color:#22d3ee"></i>
+            Intent Classification
+            <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">6 possible classes</span>
+          </div>
+          <div id="beh-intent-dist" style="padding:18px 20px 12px">
+            <div class="feed-empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading…</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-solid fa-layer-group" style="color:#f59e0b"></i>
+            Attacker Tier
+          </div>
+          <div id="beh-tiers" style="padding:18px 20px 12px">
+            <div class="feed-empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Attack Vectors + Top Commands -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-solid fa-bolt" style="color:#f43f5e"></i>
+            Attack Vector Breakdown
+          </div>
+          <div id="beh-attack-vectors" style="padding:18px 20px 12px">
+            <div class="feed-empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading…</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-solid fa-terminal" style="color:#10b981"></i>
+            Top Captured Commands
+            <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">frequency ranked</span>
+          </div>
+          <div id="beh-top-commands" style="padding:18px 20px 12px">
+            <div class="feed-empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ML Confidence Distribution histogram -->
+      <div class="card mb-4">
+        <div class="card-head">
+          <i class="fa-solid fa-chart-column" style="color:#6366f1"></i>
+          ML Classification Confidence Distribution
+          <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">sessions bucketed by confidence score</span>
+        </div>
+        <div id="beh-confidence-dist" style="padding:20px 24px 12px">
+          <div class="feed-empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading…</div>
+        </div>
+      </div>
+
+      <!-- Classified Profiles Table -->
+      <div class="card">
+        <div class="card-head">
+          <i class="fa-solid fa-table" style="color:#22d3ee"></i>
+          Classified Attacker Profiles
+          <span id="beh-table-count" style="margin-left:8px;font-size:11px;color:var(--text-muted);font-weight:400"></span>
+          <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="loadBehavior()">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="beh-profile-table">
+            <thead>
+              <tr>
+                <th data-beh-sort="src_ip" onclick="sortBehavior('src_ip')" style="cursor:pointer">IP<span class="sort-arrow"></span></th>
+                <th data-beh-sort="country" onclick="sortBehavior('country')" style="cursor:pointer">Country<span class="sort-arrow"></span></th>
+                <th data-beh-sort="classified_intent" onclick="sortBehavior('classified_intent')" style="cursor:pointer">Intent<span class="sort-arrow"></span></th>
+                <th data-beh-sort="attacker_tier" onclick="sortBehavior('attacker_tier')" style="cursor:pointer">Tier<span class="sort-arrow"></span></th>
+                <th data-beh-sort="avg_confidence" onclick="sortBehavior('avg_confidence')" style="cursor:pointer">Confidence<span class="sort-arrow"></span></th>
+                <th data-beh-sort="session_count" onclick="sortBehavior('session_count')" style="cursor:pointer">Sessions<span class="sort-arrow"></span></th>
+                <th data-beh-sort="total_commands" onclick="sortBehavior('total_commands')" style="cursor:pointer">Commands<span class="sort-arrow"></span></th>
+                <th data-beh-sort="threat_score" onclick="sortBehavior('threat_score')" style="cursor:pointer;color:var(--accent)">Score ↓<span class="sort-arrow"></span></th>
+                <th data-beh-sort="first_seen" onclick="sortBehavior('first_seen')" style="cursor:pointer">First Seen<span class="sort-arrow"></span></th>
+                <th data-beh-sort="last_seen" onclick="sortBehavior('last_seen')" style="cursor:pointer">Last Active<span class="sort-arrow"></span></th>
+              </tr>
+            </thead>
+            <tbody id="beh-profile-tbody">
+              <tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:28px"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:6px"></i>Loading…</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -712,99 +983,6 @@
             <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-shield-halved"></i> Differential Privacy</div><div class="research-card-body">Gaussian mechanism (ε=1.0, δ=1e-5) via Opacus. (ε,δ)-DP guarantees: any node's data contribution is indistinguishable from noise.</div></div>
             <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-code-branch"></i> Tech Stack</div><div class="research-card-body">Flower (flwr) · PyTorch · Opacus · gRPC transport · mTLS auth · Docker overlay · NATS message queue.</div></div>
             <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-chart-line"></i> Expected F1 Gain</div><div class="research-card-body">8–15% F1 improvement over single-node training with ≥4 diverse nodes. Target >90% global F1 within 20 rounds.</div></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══════════════════════════
-         ASHRTA
-    ═══════════════════════════ -->
-    <section class="section" id="sec-ashrta">
-      <div class="inno-header" style="--ic:#f43f5e">
-        <div class="inno-icon-wrap"><i class="fa-solid fa-robot"></i></div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span class="inno-badge" style="background:rgba(244,63,94,0.15);color:#fda4af;border-color:rgba(244,63,94,0.4)">IDEA 04</span>
-            <span style="font-size:11px;font-weight:600;color:#f59e0b;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Medium</span>
-          </div>
-          <div class="inno-title">Adversarial Self-Hardening Red Team AI</div>
-          <div class="inno-sub">A GAN-inspired system that attacks itself — to become impossible to fool. Runs every 6 hours, zero human involvement.</div>
-        </div>
-        <div id="ashrta-status" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t3)"><i class="fa-solid fa-circle-notch fa-spin"></i> Running…</div>
-      </div>
-
-      <div class="inno-kpi-row">
-        <div class="kpi-card" style="--kc:#f43f5e"><div class="kpi-icon"><i class="fa-solid fa-shield-halved"></i></div><div><div class="kpi-val" id="ashrta-kpi-score">—</div><div class="kpi-lbl">Hardening Score</div></div></div>
-        <div class="kpi-card" style="--kc:#10b981"><div class="kpi-icon"><i class="fa-solid fa-list-check"></i></div><div><div class="kpi-val" id="ashrta-kpi-passed" style="color:#10b981">—</div><div class="kpi-lbl">Checks Passed</div></div></div>
-        <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div><div class="kpi-val" id="ashrta-kpi-crit" style="color:#f59e0b">—</div><div class="kpi-lbl">Critical Issues</div></div></div>
-        <div class="kpi-card" style="--kc:#a855f7"><div class="kpi-icon"><i class="fa-solid fa-wrench"></i></div><div><div class="kpi-val" id="ashrta-kpi-patches" style="color:#a855f7">—</div><div class="kpi-lbl">Patches Applied</div></div></div>
-      </div>
-
-      <div class="ashrta-grid mb-4">
-        <!-- Score -->
-        <div class="card" style="align-self:start">
-          <div class="card-head"><i class="fa-solid fa-gauge-high" style="color:#f43f5e"></i>Hardening Score</div>
-          <div class="card-body">
-            <div class="ashrta-gauge-wrap">
-              <canvas id="ashrta-gauge" width="220" height="120"></canvas>
-              <div class="ashrta-gauge-center">
-                <div class="ashrta-score-big" id="ashrta-score-val">—</div>
-                <div class="ashrta-gauge-sub">out of 100</div>
-              </div>
-            </div>
-            <div id="ashrta-meta"></div>
-            <div class="ashrta-trend-label">Score Trend</div>
-            <div class="ashrta-trend-row" id="ashrta-trend"></div>
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t4);font-family:var(--mono);margin-top:2px"><span>Oldest</span><span>Latest</span></div>
-          </div>
-        </div>
-
-        <!-- Checks -->
-        <div class="card">
-          <div class="card-head">
-            <i class="fa-solid fa-magnifying-glass-chart" style="color:#f43f5e"></i>
-            Detection Checks
-            <span id="ashrta-checks-sum" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span>
-          </div>
-          <div class="card-body scroll-list" id="ashrta-checks" style="min-height:300px">
-            <div style="color:var(--t4);text-align:center;padding:32px;font-size:12px"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:6px"></i>Loading…</div>
-          </div>
-        </div>
-
-        <!-- Patches -->
-        <div class="card">
-          <div class="card-head"><i class="fa-solid fa-wrench" style="color:#10b981"></i>Applied Patches</div>
-          <div class="card-body scroll-list" id="ashrta-patches" style="min-height:300px">
-            <div style="color:var(--t4);text-align:center;padding:32px;font-size:12px"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:6px"></i>Loading…</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- GAN diagram -->
-      <div class="card">
-        <div class="card-head"><i class="fa-solid fa-diagram-project" style="color:#f43f5e"></i>GAN-Inspired Self-Hardening Loop</div>
-        <div class="card-body">
-          <div class="gan-diagram">
-            <div class="gan-box g-red"><div class="gan-box-icon"><i class="fa-solid fa-robot"></i></div><div class="gan-box-title">Red Agent</div><div class="gan-box-desc">Automated attacker using nmap, Hydra, custom probes. Attempts honeypot detection via 10 real heuristics.</div></div>
-            <div class="gan-arrow"><i class="fa-solid fa-arrow-right"></i><div class="gan-arrow-lbl">Report</div></div>
-            <div class="gan-box g-amber"><div class="gan-box-icon"><i class="fa-solid fa-clipboard-list"></i></div><div class="gan-box-title">Evaluator</div><div class="gan-box-desc">Logs every detection success as a honeypot weakness. Scores per-check confidence and severity.</div></div>
-            <div class="gan-arrow"><i class="fa-solid fa-arrow-right"></i><div class="gan-arrow-lbl">Weaknesses</div></div>
-            <div class="gan-box g-green"><div class="gan-box-icon"><i class="fa-solid fa-wrench"></i></div><div class="gan-box-title">Optimizer</div><div class="gan-box-desc">Auto-generates config patches. Applies to Cowrie, honeyfs, OS fingerprints, network stack.</div></div>
-            <div class="gan-arrow"><i class="fa-solid fa-arrow-right"></i><div class="gan-arrow-lbl">Verify &amp; Loop</div></div>
-            <div class="gan-box g-purple"><div class="gan-box-icon"><i class="fa-solid fa-shield"></i></div><div class="gan-box-title">Hardened Honeypot</div><div class="gan-box-desc">Each cycle the honeypot becomes more convincing. Fully automated, no human needed.</div></div>
-          </div>
-          <div class="cref-grid">
-            <div class="cref-item"><div class="cref-num">01</div><div><b>Timing Analysis</b> — Response jitter detection</div></div>
-            <div class="cref-item"><div class="cref-num">02</div><div><b>SSH Banner Fingerprint</b> — Cowrie vs real OpenSSH</div></div>
-            <div class="cref-item"><div class="cref-num">03</div><div><b>OS Fingerprint Consistency</b> — Kernel vs OS version match</div></div>
-            <div class="cref-item"><div class="cref-num">04</div><div><b>Filesystem Completeness</b> — Real: 50K+ files vs Cowrie: ~200</div></div>
-            <div class="cref-item"><div class="cref-num">05</div><div><b>Process Tree Plausibility</b> — Real: 100–300 procs vs &lt;20</div></div>
-            <div class="cref-item"><div class="cref-num">06</div><div><b>Network Stack Fingerprint</b> — TCP window 65535 is a Cowrie tell</div></div>
-            <div class="cref-item"><div class="cref-num">07</div><div><b>Service Response Behavior</b> — Known Cowrie error signatures</div></div>
-            <div class="cref-item"><div class="cref-num">08</div><div><b>CPU / Memory Artifacts</b> — Perfect 0.00 load on busy server</div></div>
-            <div class="cref-item"><div class="cref-num">09</div><div><b>Uptime Consistency</b> — Recent boot unusual for production</div></div>
-            <div class="cref-item"><div class="cref-num">10</div><div><b>Error Message Authenticity</b> — Default vs custom Cowrie msgs</div></div>
           </div>
         </div>
       </div>
@@ -1059,13 +1237,13 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="/static/js/app.js"></script>
-<script src="/static/js/intel.js"></script>
-<script src="/static/js/ashrta.js"></script>
-<script src="/static/js/twin.js"></script>
-<script src="/static/js/soc.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js" defer></script>
+<script src="/static/js/app.js?v=2" defer></script>
+<script src="/static/js/intel.js?v=2" defer></script>
+<script src="/static/js/behavior.js?v=2" defer></script>
+<script src="/static/js/twin.js?v=2" defer></script>
+<script src="/static/js/soc.js?v=2" defer></script>
 </body>
 </html>

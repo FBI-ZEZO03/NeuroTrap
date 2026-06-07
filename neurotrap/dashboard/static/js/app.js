@@ -171,7 +171,7 @@ const state = {
   eventsFeedPage: 0,
   timelineBuckets: new Array(60).fill(0),
   selectedIP: null,
-  loaded: { intel:false, cbee:false, gadcf:false, fhim:false, ashrta:false, twin:false, soc:false, attackers:false, responses:false, geomap:false },
+  loaded: { intel:false, cbee:false, gadcf:false, fhim:false, twin:false, soc:false, attackers:false, responses:false, geomap:false, mitre:false, behavior:false },
   twins: [], selectedTwin: null,
 };
 
@@ -183,10 +183,11 @@ const BREADCRUMBS = {
   responses:'Response Log <span>/</span> Operations',
   intel:'Threat Intelligence <span>/</span> Intelligence',
   geomap:'Geo Map <span>/</span> Intelligence',
+  mitre:    'MITRE ATT&CK <span>/</span> Intelligence',
+  behavior: 'Behavior Analysis <span>/</span> Intelligence',
   cbee:'CBEE <span>/</span> Innovations',
   gadcf:'GADCF <span>/</span> Innovations',
   fhim:'FHIM <span>/</span> Innovations',
-  ashrta:'ASHRTA <span>/</span> Innovations',
   twin:'Attacker Digital Twin <span>/</span> Innovations',
   soc:'AI SOC Analyst <span>/</span> Innovations',
 };
@@ -276,10 +277,15 @@ function navigate(section, el) {
     if (!state.loaded.geomap) { initGeoMap(); loadGeoMapMarkers(); state.loaded.geomap = true; }
     setTimeout(() => { if (state.geoMap) state.geoMap.invalidateSize(); }, 50);
   }
+  if (section === 'mitre') {
+    if (!state.loaded.mitre) { loadMitre(); state.loaded.mitre = true; }
+  }
+  if (section === 'behavior') {
+    if (!state.loaded.behavior) { loadBehavior(); state.loaded.behavior = true; }
+  }
   if (section === 'cbee'  && !state.loaded.cbee)  { loadCBEE();  state.loaded.cbee = true; }
   if (section === 'gadcf' && !state.loaded.gadcf) { initGADCF(); loadGADCF(); state.loaded.gadcf = true; }
   if (section === 'fhim'  && !state.loaded.fhim)  { loadFHIM();  state.loaded.fhim = true; }
-  if (section === 'ashrta'&& !state.loaded.ashrta){ loadASHRTA();state.loaded.ashrta = true; }
   if (section === 'twin'  && !state.loaded.twin)  { loadTwin();  state.loaded.twin = true; }
   if (section === 'soc'   && !state.loaded.soc)   { loadSOC();   state.loaded.soc = true; }
   if (section === 'attackers') loadFullAttackers();
@@ -302,50 +308,206 @@ function initClock() {
 }
 
 /* ════════════════════════════════════════
-   MAP
+   GEO MAP
 ════════════════════════════════════════ */
-function _makeMapInstance(elementId) {
-  const m = L.map(elementId, { zoomControl:true, scrollWheelZoom:false, attributionControl:false });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:18 }).addTo(m);
-  m.setView([25, 10], 2);
-  return m;
+
+const GEO_SERVER   = { lat: 49.4282, lon: 10.9796, city: 'Oberasbach, Bavaria DE' };
+const GEO_COLORS   = { critical:'#f43f5e', high:'#f59e0b', medium:'#a855f7', low:'#22d3ee' };
+let _geoMarkers    = new Map();   // ip → L.marker
+let _geoArcs       = new Map();   // ip → L.polyline
+let _geoKnownIPs   = new Set();
+let _geoRefreshId  = null;
+
+function _geoSev(score) {
+  return score >= 90 ? 'critical' : score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
 }
-function initMap() {
-  // attack-map removed from intel page — map lives in #sec-geomap only
-}
+
+function initMap() {}  // no-op — intel attack-map removed
+
 function initGeoMap() {
-  state.geoMap = _makeMapInstance('geomap-map');
+  if (state.geoMap) return;
+  const m = L.map('geomap-map', {
+    zoomControl: false, scrollWheelZoom: true,
+    attributionControl: false, minZoom: 2, maxZoom: 12,
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(m);
+  L.control.zoom({ position: 'bottomright' }).addTo(m);
+  m.setView([28, 12], 2);
+  state.geoMap = m;
+
+  // Server (victim) marker
+  const sIcon = L.divIcon({
+    className: '', iconSize: [0,0], iconAnchor: [0,0],
+    html: `<div class="geo-server-wrap">
+             <div class="geo-server-ring"></div>
+             <div class="geo-server-ring geo-server-ring-2"></div>
+             <div class="geo-server-dot"></div>
+             <div class="geo-server-label">SERVER</div>
+           </div>`,
+  });
+  L.marker([GEO_SERVER.lat, GEO_SERVER.lon], { icon: sIcon, zIndexOffset: 9999 })
+    .addTo(m)
+    .bindPopup(`<b style="color:#10b981">NeuroTrap Server</b><br/><span style="color:#64748b">${GEO_SERVER.city}</span>`);
+
+  // Auto-refresh every 30s while section is open
+  if (_geoRefreshId) clearInterval(_geoRefreshId);
+  _geoRefreshId = setInterval(loadGeoMapMarkers, 30000);
 }
-function refreshGeoMap() {
-  if (state.geoMap) state.geoMap.invalidateSize();
+
+function _placeGeoMarker(lat, lon, ip, score) {
+  const map = state.geoMap;
+  if (!map || !lat || !lon) return;
+
+  const sev   = _geoSev(score);
+  const c     = GEO_COLORS[sev];
+  const r     = sev === 'critical' ? 10 : sev === 'high' ? 8 : sev === 'medium' ? 6 : 4;
+  const isNew = !_geoKnownIPs.has(ip);
+  const zi    = sev === 'critical' ? 800 : sev === 'high' ? 600 : 400;
+
+  if (_geoMarkers.has(ip)) {
+    try { map.removeLayer(_geoMarkers.get(ip)); } catch(_) {}
+  }
+
+  const icon = L.divIcon({
+    className: '', iconSize: [0,0], iconAnchor: [0,0],
+    html: `<div class="geo-marker-wrap">
+             <div class="geo-ring" style="width:${r*5}px;height:${r*5}px;color:${c};${isNew?'animation-duration:1.2s':''}"></div>
+             <div class="geo-ring geo-ring-2" style="width:${r*5}px;height:${r*5}px;color:${c}"></div>
+             <div class="geo-dot" style="width:${r*2}px;height:${r*2}px;background:${c};box-shadow:0 0 ${r*2}px ${c}aa,0 0 4px rgba(0,0,0,0.8)"></div>
+           </div>`,
+  });
+
+  const marker = L.marker([lat, lon], { icon, zIndexOffset: zi }).addTo(map);
+  marker.bindPopup(
+    `<b style="color:${c};font-size:13px">${ip}</b><br/>
+     <span style="color:#64748b">Score:</span> <span style="color:${c};font-weight:700">${Math.round(score)}</span><br/>
+     <span style="color:#64748b">Level:</span> <span style="color:${c};font-weight:600;text-transform:uppercase">${sev}</span>`
+  );
+  marker.on('click', () => { try { openModal(ip); } catch(_) {} });
+  _geoMarkers.set(ip, marker);
+
+  // Animated arc on new IPs
+  if (isNew) _drawArc(lat, lon, c, ip);
+  _geoKnownIPs.add(ip);
 }
+
+function _drawArc(lat1, lon1, color, ip) {
+  const map = state.geoMap;
+  if (!map) return;
+  if (_geoArcs.has(ip)) { try { map.removeLayer(_geoArcs.get(ip)); } catch(_) {} }
+
+  const [lat2, lon2] = [GEO_SERVER.lat, GEO_SERVER.lon];
+  const pts = [];
+  const steps = 60;
+  for (let i = 0; i <= steps; i++) {
+    const t    = i / steps;
+    const lat  = lat1 + (lat2 - lat1) * t;
+    const lon  = lon1 + (lon2 - lon1) * t;
+    const bend = Math.sin(Math.PI * t) * 12;
+    pts.push([lat + bend, lon]);
+  }
+
+  const arc = L.polyline(pts, { color, weight: 1.5, opacity: 0.55, className: 'geo-arc-line' }).addTo(map);
+
+  // Draw animation via SVG stroke-dashoffset
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const el = arc.getElement();
+      if (el) {
+        const len = el.getTotalLength ? el.getTotalLength() : 800;
+        el.style.strokeDasharray  = len;
+        el.style.strokeDashoffset = len;
+        el.style.animation = 'arcDraw 1.8s ease-out forwards';
+      }
+    }, 80);
+  });
+
+  // Fade out arc after 90s
+  setTimeout(() => {
+    try { map.removeLayer(arc); _geoArcs.delete(ip); } catch(_) {}
+  }, 90000);
+
+  _geoArcs.set(ip, arc);
+}
+
+function refreshGeoMap() { if (state.geoMap) state.geoMap.invalidateSize(); }
+
+function reloadGeoMap() {
+  _geoKnownIPs.clear();   // force re-animation on manual refresh
+  loadGeoMapMarkers();
+}
+
 async function loadGeoMapMarkers() {
   try {
-    const d = await fetch('/api/attackers?limit=200').then(r => r.json());
+    const d = await fetch('/api/attackers?limit=500').then(r => r.json());
     const attackers = d.attackers || [];
-    const el = document.getElementById('geomap-kpi-ips');
-    if (el) el.textContent = fmtNum(attackers.length);
+    const now = new Date().toLocaleTimeString('en-GB');
+
+    // KPIs + stats strip
+    const mapped    = attackers.filter(a => a.latitude && a.longitude).length;
+    const countries = new Set(attackers.map(a => a.country).filter(Boolean)).size;
+    const high      = attackers.filter(a => (a.threat_score || 0) >= 70).length;
+    const _set = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+    _set('geo-kpi-total',     attackers.length || '—');
+    _set('geo-kpi-countries', countries || '—');
+    _set('geo-kpi-active',    high || '—');
+    _set('geo-kpi-mapped',    mapped ? `${mapped}/${attackers.length}` : '—');
+    _set('geo-stat-total',    attackers.length);
+    _set('geo-stat-countries', countries);
+    _set('geo-stat-time',     now);
+    _set('geo-last-updated',  `Updated ${now}`);
+    _set('geomap-ip-count',   `${attackers.length} IPs`);
+
+    // Place markers
     attackers.forEach(a => {
-      if (a.latitude && a.longitude) {
-        const sev = a.threat_score >= 90 ? 'critical' : a.threat_score >= 70 ? 'high' : a.threat_score >= 40 ? 'medium' : 'low';
-        _placeMarker(state.geoMap, a.latitude, a.longitude, a.src_ip, sev);
-      }
+      if (a.latitude && a.longitude) _placeGeoMarker(a.latitude, a.longitude, a.src_ip, a.threat_score || 0);
     });
-  } catch (_) {}
+
+    // IP grid
+    _renderGeoIPGrid(attackers);
+  } catch(_) {}
 }
-function _placeMarker(mapInstance, lat, lon, ip, sev) {
-  if (!mapInstance || !lat || !lon) return;
-  const colors = { critical:'#f43f5e', high:'#f59e0b', medium:'#a855f7', low:'#475569' };
-  const c = colors[sev] || colors.low;
-  const r = sev==='critical'?9:sev==='high'?7:5;
-  const ring = L.circleMarker([lat,lon],{radius:r+5,color:c,fillColor:'transparent',weight:1.5,opacity:0.4}).addTo(mapInstance);
-  const dot  = L.circleMarker([lat,lon],{radius:r,color:c,fillColor:c,fillOpacity:0.7,weight:1}).addTo(mapInstance);
-  dot.bindPopup(`<b style="color:${c}">${ip}</b><br/><span style="color:#64748b">Severity:</span> ${sev}`);
-  setTimeout(() => { mapInstance.removeLayer(ring); mapInstance.removeLayer(dot); }, 180000);
+
+function _renderGeoIPGrid(attackers) {
+  const list = document.getElementById('geomap-ip-list');
+  if (!list) return;
+  if (!attackers.length) {
+    list.innerHTML = '<div class="feed-empty" style="padding:40px 0"><i class="fa-solid fa-crosshairs" style="font-size:28px;color:var(--border-dim)"></i>No attackers yet</div>';
+    return;
+  }
+  list.innerHTML = `<div class="geo-ip-grid">${attackers.map(a => {
+    const s   = a.threat_score || 0;
+    const sev = _geoSev(s);
+    const c   = GEO_COLORS[sev];
+    const lbl = sev === 'critical' ? 'CRIT' : sev === 'high' ? 'HIGH' : sev === 'medium' ? 'MED' : 'LOW';
+    const pct = Math.round(s);
+    return `<div onclick="openModal('${a.src_ip}')"
+        style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-left:3px solid ${c};border-radius:7px;padding:11px 13px;cursor:pointer;transition:all .15s"
+        onmouseover="this.style.background='rgba(255,255,255,0.05)';this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.025)';this.style.transform=''">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:9px;font-weight:800;color:${c};background:${c}22;border:1px solid ${c}44;border-radius:3px;padding:2px 6px;flex-shrink:0">${lbl}</span>
+        <span style="font-family:var(--font-mono);font-size:12px;color:var(--accent);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.src_ip}</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:11px;color:var(--text-muted)">${a.country || '—'}</span>
+        <span style="font-size:11px;color:var(--text-muted)">${a.session_count || 0} sessions</span>
+      </div>
+      <div style="height:3px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${c}66,${c});border-radius:2px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:5px">
+        <span style="font-size:9px;color:var(--text-muted);font-family:var(--font-mono)">THREAT SCORE</span>
+        <span style="font-size:10px;color:${c};font-weight:700;font-family:var(--font-mono)">${s.toFixed(1)}</span>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 }
+
 function addMarker(lat, lon, ip, sev) {
-  _placeMarker(state.map, lat, lon, ip, sev);
-  _placeMarker(state.geoMap, lat, lon, ip, sev);
+  // WebSocket live push — score approximated from severity label
+  const score = sev === 'critical' ? 95 : sev === 'high' ? 75 : sev === 'medium' ? 45 : 15;
+  _placeGeoMarker(lat, lon, ip, score);
 }
 
 /* ════════════════════════════════════════

@@ -46,16 +46,19 @@ def _cache_set(key: str, data):
     return data
 
 def cached(key: str):
-    """Decorator: serve cached JSON for up to _CACHE_TTL seconds."""
+    """Decorator: serve cached JSON. Cache key includes query string so different
+    limit/filter params get their own entry."""
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            hit = _cache_get(key)
+            qs  = request.query_string.decode()
+            ck  = f"{key}?{qs}" if qs else key
+            hit = _cache_get(ck)
             if hit is not None:
                 return jsonify(hit)
             result = fn(*args, **kwargs)
             try:
-                _cache_set(key, result.get_json())
+                _cache_set(ck, result.get_json())
             except Exception:
                 pass
             return result
@@ -70,6 +73,8 @@ app = Flask(
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-me")
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET", "dev-jwt-change-me")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = 3600
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
@@ -235,7 +240,6 @@ def dashboard():
 @app.route("/cbee")
 @app.route("/gadcf")
 @app.route("/fhim")
-@app.route("/ashrta")
 @app.route("/soc")
 def legacy_pages():
     return redirect("/")
@@ -541,28 +545,6 @@ def _get_fhim():
     except Exception as e:
         return None
 
-def _get_ashrta():
-    try:
-        from src.ashrta.red_agent import RedAgent
-        from src.ashrta.hardening_optimizer import HardeningOptimizer, ASHRTAScheduler
-        db = get_db()
-        if not hasattr(_get_ashrta, "_instance"):
-            mock_db = type("MockDB", (), {
-                "__getitem__": lambda s,k: type("C",(),{
-                    "find":lambda *a,**kw: type("Cur",(),{"sort":lambda *a,**kw:[],"limit":lambda *a:[]})(),
-                    "insert_one":lambda *a:None,
-                    "update_one":lambda *a,**kw:None,
-                })()
-            })()
-            actual_db = db if db else mock_db
-            agent = RedAgent()
-            optimizer = HardeningOptimizer(actual_db)
-            _get_ashrta._instance = ASHRTAScheduler(actual_db, agent, optimizer)
-        return _get_ashrta._instance
-    except Exception:
-        return None
-
-
 # ── CBEE API ──────────────────────────────────────────────────────────────────
 
 @app.route("/api/cbee/profiles", methods=["GET"])
@@ -672,72 +654,6 @@ def get_fhim_rounds():
     fhim = _get_fhim()
     rounds = fhim.get_round_history() if fhim else []
     return jsonify({"rounds": rounds})
-
-
-# ── ASHRTA API ────────────────────────────────────────────────────────────────
-
-@app.route("/api/ashrta/reports", methods=["GET"])
-def get_ashrta_reports():
-    ashrta = _get_ashrta()
-    if ashrta:
-        return jsonify({"reports": ashrta.get_reports()})
-    _demo_checks = [
-        {"check_name":"ssh_banner_fingerprint","passed":True, "severity":"critical","confidence":0.97,"description":"SSH banner matches real OpenSSH 9.3p1 Ubuntu","recommendation":""},
-        {"check_name":"timing_analysis",       "passed":True, "severity":"high",   "confidence":0.91,"description":"Response jitter within normal range (±142ms)","recommendation":""},
-        {"check_name":"os_kernel_consistency", "passed":False,"severity":"high",   "confidence":0.83,"description":"Kernel version mismatch in /proc/version vs uname","recommendation":"Align honeyfs /proc/version with reported uname string"},
-        {"check_name":"filesystem_completeness","passed":True,"severity":"medium", "confidence":0.88,"description":"2800 filesystem entries — passes density check","recommendation":""},
-        {"check_name":"process_tree_plausibility","passed":True,"severity":"medium","confidence":0.90,"description":"127 processes, realistic PID spread","recommendation":""},
-        {"check_name":"network_stack_fingerprint","passed":False,"severity":"critical","confidence":0.95,"description":"TCP window size and MSS reveal honeypot stack","recommendation":"Set net.ipv4.tcp_rmem to match Ubuntu 24.04 defaults"},
-        {"check_name":"service_response_behavior","passed":True,"severity":"medium","confidence":0.86,"description":"FTP/SSH banners consistent with declared OS","recommendation":""},
-        {"check_name":"cpu_memory_artifacts",  "passed":True, "severity":"low",   "confidence":0.79,"description":"cpuinfo and meminfo entries look plausible","recommendation":""},
-        {"check_name":"uptime_consistency",    "passed":True, "severity":"low",   "confidence":0.82,"description":"Uptime correlates with last reboot in wtmp","recommendation":""},
-        {"check_name":"error_message_authenticity","passed":True,"severity":"medium","confidence":0.93,"description":"Error messages match real OpenSSH error strings","recommendation":""},
-    ]
-    return jsonify({"reports": [
-        {"report_id":"r1a2b3","timestamp":time.time()-86400*3,"hardening_score":62.0,"checks_passed":6,"checks_total":10,"critical_weaknesses":2,"patches_generated":4,"patches_applied":4,"full_results":_demo_checks},
-        {"report_id":"c4d5e6","timestamp":time.time()-86400*2,"hardening_score":75.0,"checks_passed":7,"checks_total":10,"critical_weaknesses":1,"patches_generated":3,"patches_applied":3,"full_results":_demo_checks},
-        {"report_id":"f7g8h9","timestamp":time.time()-86400*1,"hardening_score":82.0,"checks_passed":8,"checks_total":10,"critical_weaknesses":0,"patches_generated":2,"patches_applied":2,"full_results":_demo_checks},
-        {"report_id":"i0j1k2","timestamp":time.time()-3600,   "hardening_score":90.0,"checks_passed":9,"checks_total":10,"critical_weaknesses":0,"patches_generated":1,"patches_applied":1,"full_results":_demo_checks},
-    ]})
-
-@app.route("/api/ashrta/patches", methods=["GET"])
-def get_ashrta_patches():
-    ashrta = _get_ashrta()
-    if ashrta:
-        return jsonify({"patches": ashrta.optimizer.get_patch_history()})
-    return jsonify({"patches": [
-        {"patch_id":"p1","weakness":"ssh_banner_fingerprint","severity":"critical","config_target":"cowrie.cfg","before":"SSH-2.0-OpenSSH_6.0p1","after":"SSH-2.0-OpenSSH_9.3p1 Ubuntu-3ubuntu0.6","applied":True,"timestamp":time.time()-86400},
-        {"patch_id":"p2","weakness":"timing_analysis","severity":"high","config_target":"cowrie.cfg","before":"response_delay = 0","after":"response_delay = 142","applied":True,"timestamp":time.time()-86400+60},
-        {"patch_id":"p3","weakness":"filesystem_completeness","severity":"critical","config_target":"honeyfs","before":"entries = 120","after":"entries = 2800","applied":True,"timestamp":time.time()-86400+120},
-        {"patch_id":"p4","weakness":"process_tree_plausibility","severity":"high","config_target":"cowrie.cfg","before":"processes = 15","after":"processes = 127","applied":True,"timestamp":time.time()-86400+180},
-    ]})
-
-@app.route("/api/ashrta/run", methods=["POST"])
-@require_admin
-def ashrta_run_cycle():
-    ashrta = _get_ashrta()
-    if ashrta:
-        summary = ashrta.run_cycle()
-        return jsonify(summary)
-    # Demo run
-    from src.ashrta.red_agent import RedAgent
-    from src.ashrta.hardening_optimizer import HardeningOptimizer
-    db_mock = type("MockDB", (), {"__getitem__": lambda s,k: type("C",(),{"insert_one":lambda *a:None,"update_one":lambda *a,**kw:None,"find":lambda *a,**kw:type("Cur",(),{"sort":lambda *a,**kw:[],"limit":lambda *a:[]})()})()})()
-    agent     = RedAgent()
-    optimizer = HardeningOptimizer(db_mock)
-    report    = agent.run()
-    patches   = optimizer.generate_patches(report)
-    applied   = optimizer.apply_patches(patches)
-    return jsonify({
-        "report_id": report.report_id,
-        "hardening_score": report.hardening_score,
-        "checks_passed": report.checks_passed,
-        "checks_total": report.checks_total,
-        "critical_weaknesses": report.critical_weaknesses,
-        "patches_generated": len(patches),
-        "patches_applied": applied,
-        "full_results": report.results,
-    })
 
 
 # ── ADT — Attacker Digital Twin API (Innovation 05) ───────────────────────────
