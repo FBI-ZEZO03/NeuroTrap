@@ -55,6 +55,10 @@
       <i class="fa-solid fa-globe nav-icon"></i>
       Threat Intel
     </div>
+    <div class="nav-item" data-section="geomap" onclick="navigate('geomap',this)">
+      <i class="fa-solid fa-map-location-dot nav-icon"></i>
+      Geo Map
+    </div>
 
     <div class="nav-label">Innovations</div>
 
@@ -476,6 +480,35 @@
         <div class="card-head"><i class="fa-solid fa-chart-bar" style="color:#6366f1"></i>Attack Type Distribution</div>
         <div class="card-body" id="intel-attack-dist" style="min-height:120px">
           <div class="feed-empty"><i class="fa-solid fa-chart-simple"></i>Loading…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════
+         GEO MAP
+    ═══════════════════════════ -->
+    <section class="section" id="sec-geomap">
+      <div class="page-header">
+        <div class="page-title">Geo Map</div>
+        <div class="page-subtitle">Live geographic view of all attack origins</div>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column">
+        <div class="card-head">
+          <i class="fa-solid fa-map-location-dot" style="color:#22d3ee"></i>
+          Global Attack Origins
+          <div class="live-badge" style="margin-left:0"><div class="live-dot"></div>LIVE</div>
+          <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="refreshGeoMap()">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+        </div>
+        <div class="card-body" style="padding:0;position:relative">
+          <div id="geomap-map" style="height:600px;width:100%;border-radius:0 0 var(--radius) var(--radius)"></div>
+          <div class="map-legend" style="bottom:24px;right:16px">
+            <div class="map-legend-item"><div class="map-legend-dot" style="background:#f43f5e"></div>Critical</div>
+            <div class="map-legend-item"><div class="map-legend-dot" style="background:#f59e0b"></div>High</div>
+            <div class="map-legend-item"><div class="map-legend-dot" style="background:#a855f7"></div>Medium</div>
+            <div class="map-legend-item"><div class="map-legend-dot" style="background:#334155"></div>Low</div>
+          </div>
         </div>
       </div>
     </section>

@@ -163,6 +163,7 @@ function doLogout() {
 const state = {
   socket: null,
   map: null,
+  geoMap: null,
   timelineChart: null,
   breakdownChart: null,
   feedItems: [],
@@ -170,7 +171,7 @@ const state = {
   eventsFeedPage: 0,
   timelineBuckets: new Array(60).fill(0),
   selectedIP: null,
-  loaded: { intel:false, cbee:false, gadcf:false, fhim:false, ashrta:false, twin:false, soc:false, attackers:false, responses:false },
+  loaded: { intel:false, cbee:false, gadcf:false, fhim:false, ashrta:false, twin:false, soc:false, attackers:false, responses:false, geomap:false },
   twins: [], selectedTwin: null,
 };
 
@@ -181,6 +182,7 @@ const BREADCRUMBS = {
   environments:'Honeypots <span>/</span> Operations',
   responses:'Response Log <span>/</span> Operations',
   intel:'Threat Intelligence <span>/</span> Intelligence',
+  geomap:'Geo Map <span>/</span> Intelligence',
   cbee:'CBEE <span>/</span> Innovations',
   gadcf:'GADCF <span>/</span> Innovations',
   fhim:'FHIM <span>/</span> Innovations',
@@ -268,8 +270,11 @@ function navigate(section, el) {
   // Lazy-load section data
   if (section === 'intel') {
     if (!state.loaded.intel) { loadIntel(); state.loaded.intel = true; }
-    // Leaflet needs invalidateSize when container goes from hidden to visible
     setTimeout(() => { if (state.map) state.map.invalidateSize(); }, 50);
+  }
+  if (section === 'geomap') {
+    if (!state.loaded.geomap) { initGeoMap(); loadGeoMapMarkers(); state.loaded.geomap = true; }
+    setTimeout(() => { if (state.geoMap) state.geoMap.invalidateSize(); }, 50);
   }
   if (section === 'cbee'  && !state.loaded.cbee)  { loadCBEE();  state.loaded.cbee = true; }
   if (section === 'gadcf' && !state.loaded.gadcf) { initGADCF(); loadGADCF(); state.loaded.gadcf = true; }
@@ -299,20 +304,45 @@ function initClock() {
 /* ════════════════════════════════════════
    MAP
 ════════════════════════════════════════ */
-function initMap() {
-  state.map = L.map('attack-map', { zoomControl:true, scrollWheelZoom:false, attributionControl:false });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:18 }).addTo(state.map);
-  state.map.setView([25, 10], 2);
+function _makeMapInstance(elementId) {
+  const m = L.map(elementId, { zoomControl:true, scrollWheelZoom:false, attributionControl:false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:18 }).addTo(m);
+  m.setView([25, 10], 2);
+  return m;
 }
-function addMarker(lat, lon, ip, sev) {
-  if (!state.map || !lat || !lon) return;
+function initMap() {
+  state.map = _makeMapInstance('attack-map');
+}
+function initGeoMap() {
+  state.geoMap = _makeMapInstance('geomap-map');
+}
+function refreshGeoMap() {
+  if (state.geoMap) state.geoMap.invalidateSize();
+}
+async function loadGeoMapMarkers() {
+  try {
+    const d = await fetch('/api/attackers?limit=200').then(r => r.json());
+    (d.attackers || []).forEach(a => {
+      if (a.latitude && a.longitude) {
+        const sev = a.threat_score >= 90 ? 'critical' : a.threat_score >= 70 ? 'high' : a.threat_score >= 40 ? 'medium' : 'low';
+        _placeMarker(state.geoMap, a.latitude, a.longitude, a.src_ip, sev);
+      }
+    });
+  } catch (_) {}
+}
+function _placeMarker(mapInstance, lat, lon, ip, sev) {
+  if (!mapInstance || !lat || !lon) return;
   const colors = { critical:'#f43f5e', high:'#f59e0b', medium:'#a855f7', low:'#475569' };
   const c = colors[sev] || colors.low;
   const r = sev==='critical'?9:sev==='high'?7:5;
-  const ring = L.circleMarker([lat,lon],{radius:r+5,color:c,fillColor:'transparent',weight:1.5,opacity:0.4}).addTo(state.map);
-  const dot  = L.circleMarker([lat,lon],{radius:r,color:c,fillColor:c,fillOpacity:0.7,weight:1}).addTo(state.map);
+  const ring = L.circleMarker([lat,lon],{radius:r+5,color:c,fillColor:'transparent',weight:1.5,opacity:0.4}).addTo(mapInstance);
+  const dot  = L.circleMarker([lat,lon],{radius:r,color:c,fillColor:c,fillOpacity:0.7,weight:1}).addTo(mapInstance);
   dot.bindPopup(`<b style="color:${c}">${ip}</b><br/><span style="color:#64748b">Severity:</span> ${sev}`);
-  setTimeout(()=>{state.map.removeLayer(ring);state.map.removeLayer(dot);},180000);
+  setTimeout(() => { mapInstance.removeLayer(ring); mapInstance.removeLayer(dot); }, 180000);
+}
+function addMarker(lat, lon, ip, sev) {
+  _placeMarker(state.map, lat, lon, ip, sev);
+  _placeMarker(state.geoMap, lat, lon, ip, sev);
 }
 
 /* ════════════════════════════════════════
