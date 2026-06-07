@@ -168,7 +168,6 @@ const state = {
   feedItems: [],
   feedPage: 0,
   eventsFeedPage: 0,
-  pendingEvents: 0,
   timelineBuckets: new Array(60).fill(0),
   selectedIP: null,
   loaded: { intel:false, cbee:false, gadcf:false, fhim:false, ashrta:false, twin:false, soc:false, attackers:false, responses:false },
@@ -369,29 +368,11 @@ function _filteredFeed(typeId, sevId) {
   return state.feedItems.filter(e => (!ft || e.attack_type === ft) && (!fs || e.severity === fs));
 }
 
-function _updateNewBadge() {
-  const badge = document.getElementById('feed-new-badge');
-  if (!badge) return;
-  if (state.pendingEvents > 0) {
-    badge.textContent = `▲ ${state.pendingEvents} new event${state.pendingEvents > 1 ? 's' : ''} — click to refresh`;
-    badge.style.display = 'block';
-  } else {
-    badge.style.display = 'none';
-  }
-}
-
-function flushFeed() {
-  state.pendingEvents = 0;
-  state.feedPage = 0;
-  _updateNewBadge();
-  renderMainFeed();
-}
-
 function addFeed(e) {
   state.feedItems.unshift(e);
   if (state.feedItems.length > 5000) state.feedItems.pop();
-  state.pendingEvents++;
-  _updateNewBadge();
+  renderMainFeed();
+  if (document.getElementById('sec-events').classList.contains('active')) renderEventsPage();
 }
 
 function buildFeedItem(e) {
@@ -988,7 +969,6 @@ function injectDemo() {
   // only inject if feed still empty (no live data)
   if (state.feedItems.length === 0) {
     events.forEach(e=>{ addFeed(e); pushTimeline(); });
-    flushFeed();
     if (document.getElementById('kpi-events').textContent === '0') {
       animateVal('kpi-events',0,1247,800); animateVal('kpi-sessions',0,3,600);
       animateVal('kpi-blocked',0,8,700); animateVal('kpi-envs',0,3,500);
