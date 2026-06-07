@@ -402,7 +402,7 @@
     <section class="section" id="sec-intel">
       <div class="page-header">
         <div class="page-title">Threat Intelligence</div>
-        <div class="page-subtitle">Live IOC feed · Geographic heatmap · Attack campaign tracking</div>
+        <div class="page-subtitle">Live IOC feed · Country breakdown · Attack type distribution</div>
       </div>
 
       <!-- KPIs -->
@@ -410,25 +410,6 @@
         <div class="kpi-card" style="--kc:#22d3ee"><div class="kpi-icon"><i class="fa-solid fa-crosshairs"></i></div><div><div class="kpi-val" id="intel-kpi-iocs">—</div><div class="kpi-lbl">Total IOCs</div></div></div>
         <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-earth-americas"></i></div><div><div class="kpi-val" id="intel-kpi-countries" style="color:#f59e0b">—</div><div class="kpi-lbl">Countries Seen</div></div></div>
         <div class="kpi-card" style="--kc:#f43f5e"><div class="kpi-icon"><i class="fa-solid fa-skull-crossbones"></i></div><div><div class="kpi-val" id="intel-kpi-top" style="color:#f43f5e;font-size:13px">—</div><div class="kpi-lbl">Top Threat IP</div></div></div>
-      </div>
-
-      <!-- Geo Heatmap -->
-      <div class="card mb-4">
-        <div class="card-head">
-          <i class="fa-solid fa-earth-americas" style="color:#22d3ee"></i>
-          Global Attack Origins
-          <div class="live-badge"><div class="live-dot"></div>LIVE</div>
-          <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="refreshIntelMap()"><i class="fa-solid fa-rotate"></i></button>
-        </div>
-        <div class="card-body">
-          <div id="attack-map"></div>
-          <div class="map-legend">
-            <div class="map-legend-item"><div class="map-legend-dot" style="background:#f43f5e"></div>Critical</div>
-            <div class="map-legend-item"><div class="map-legend-dot" style="background:#f59e0b"></div>High</div>
-            <div class="map-legend-item"><div class="map-legend-dot" style="background:#a855f7"></div>Medium</div>
-            <div class="map-legend-item"><div class="map-legend-dot" style="background:#334155"></div>Low</div>
-          </div>
-        </div>
       </div>
 
       <!-- IOC Feed + Country Breakdown + Top Ports -->

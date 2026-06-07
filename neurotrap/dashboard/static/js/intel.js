@@ -27,12 +27,6 @@ async function loadIntel() {
   renderAttackDist(data.attack_type_dist || []);
   renderDashTopCountries(data.top_countries || []);
 
-  // Init map on first visit
-  if (!state.map) initMap();
-}
-
-function refreshIntelMap() {
-  if (state.map) state.map.invalidateSize();
 }
 
 // ── KPIs ──────────────────────────────────────────────────────────────────────

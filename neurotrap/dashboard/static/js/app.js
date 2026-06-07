@@ -311,7 +311,7 @@ function _makeMapInstance(elementId) {
   return m;
 }
 function initMap() {
-  state.map = _makeMapInstance('attack-map');
+  // attack-map removed from intel page — map lives in #sec-geomap only
 }
 function initGeoMap() {
   state.geoMap = _makeMapInstance('geomap-map');
