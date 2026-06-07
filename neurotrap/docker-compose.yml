@@ -239,6 +239,7 @@ services:
     restart: unless-stopped
     networks:
       - management-net
+      - monitor-bridge
     ports:
       - "5000:5000"
     volumes:
@@ -248,6 +249,7 @@ services:
       - MONGO_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASS:-neurotrap_secret}@mongodb:27017/neurotrap?authSource=admin
       - SECRET_KEY=${SECRET_KEY:-change_me_in_production}
       - JWT_SECRET=${JWT_SECRET:-change_me_jwt}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     depends_on:
       - mongodb
 

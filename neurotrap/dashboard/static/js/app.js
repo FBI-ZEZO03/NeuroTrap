@@ -4,6 +4,162 @@
    NeuroTrap CADN — Single-Page App Controller
 ════════════════════════════════════════════════════════════ */
 
+/* ── Auth helpers ─────────────────────────────────────────── */
+
+function _jwtPayload(token) {
+  try { return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); }
+  catch { return {}; }
+}
+
+const AUTH = {
+  token: sessionStorage.getItem('nt_token') || '',
+  mfaRequired: false,
+  pendingUser: '',
+  pendingPass: '',
+
+  header() {
+    return this.token ? { 'Authorization': 'Bearer ' + this.token } : {};
+  },
+
+  save(token) {
+    this.token = token;
+    sessionStorage.setItem('nt_token', token);
+  },
+
+  clear() {
+    this.token = '';
+    sessionStorage.removeItem('nt_token');
+  },
+
+  isAuthenticated() {
+    return !!this.token;
+  },
+
+  role() {
+    return _jwtPayload(this.token).role || 'analyst';
+  },
+
+  isAdmin() {
+    return this.role() === 'admin';
+  },
+};
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideLoginError() {
+  const el = document.getElementById('login-error');
+  if (el) el.style.display = 'none';
+}
+
+function setLoginBusy(busy) {
+  const btn = document.getElementById('login-btn');
+  const otpBtn = document.getElementById('otp-btn');
+  if (btn) btn.disabled = busy;
+  if (otpBtn) otpBtn.disabled = busy;
+}
+
+function applyRoleUI() {
+  const isAdmin = AUTH.isAdmin();
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+}
+
+function showDashboard() {
+  const overlay = document.getElementById('login-overlay');
+  if (overlay) overlay.style.display = 'none';
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.style.display = '';
+  applyRoleUI();
+}
+
+function showLoginOverlay() {
+  const overlay = document.getElementById('login-overlay');
+  if (overlay) overlay.style.display = 'flex';
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.style.display = 'none';
+}
+
+function resetLoginStep() {
+  document.getElementById('login-step-password').style.display = '';
+  document.getElementById('login-step-otp').style.display = 'none';
+  document.getElementById('login-otp').value = '';
+  hideLoginError();
+}
+
+async function doLogin() {
+  hideLoginError();
+  const user = (document.getElementById('login-user').value || '').trim();
+  const pass = document.getElementById('login-pass').value || '';
+  if (!user || !pass) { showLoginError('Please enter username and password.'); return; }
+
+  setLoginBusy(true);
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pass }),
+    });
+    const d = await r.json();
+
+    if (r.status === 401 && d.mfa_required) {
+      AUTH.pendingUser = user;
+      AUTH.pendingPass = pass;
+      document.getElementById('login-step-password').style.display = 'none';
+      document.getElementById('login-step-otp').style.display = '';
+      document.getElementById('login-otp').focus();
+      return;
+    }
+
+    if (!r.ok) { showLoginError(d.error || 'Login failed.'); return; }
+
+    AUTH.save(d.access_token);
+    AUTH.mfaRequired = !!d.mfa_enabled;
+    showDashboard();
+    initApp();
+  } catch(e) {
+    showLoginError('Network error — please retry.');
+  } finally {
+    setLoginBusy(false);
+  }
+}
+
+async function doLoginOTP() {
+  hideLoginError();
+  const code = (document.getElementById('login-otp').value || '').trim();
+  if (code.length !== 6) { showLoginError('Enter a valid 6-digit code.'); return; }
+
+  setLoginBusy(true);
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: AUTH.pendingUser, password: AUTH.pendingPass, otp: code }),
+    });
+    const d = await r.json();
+
+    if (!r.ok) { showLoginError(d.error || 'Invalid OTP code.'); return; }
+
+    AUTH.save(d.access_token);
+    showDashboard();
+    initApp();
+  } catch(e) {
+    showLoginError('Network error — please retry.');
+  } finally {
+    setLoginBusy(false);
+  }
+}
+
+function doLogout() {
+  AUTH.clear();
+  resetLoginStep();
+  showLoginOverlay();
+}
+
 const state = {
   socket: null,
   map: null,
@@ -12,7 +168,7 @@ const state = {
   feedItems: [],
   timelineBuckets: new Array(60).fill(0),
   selectedIP: null,
-  loaded: { cbee:false, gadcf:false, fhim:false, ashrta:false, twin:false, soc:false, attackers:false, responses:false },
+  loaded: { intel:false, cbee:false, gadcf:false, fhim:false, ashrta:false, twin:false, soc:false, attackers:false, responses:false },
   twins: [], selectedTwin: null,
 };
 
@@ -22,6 +178,7 @@ const BREADCRUMBS = {
   events:'Live Events <span>/</span> Operations',
   environments:'Honeypots <span>/</span> Operations',
   responses:'Response Log <span>/</span> Operations',
+  intel:'Threat Intelligence <span>/</span> Intelligence',
   cbee:'CBEE <span>/</span> Innovations',
   gadcf:'GADCF <span>/</span> Innovations',
   fhim:'FHIM <span>/</span> Innovations',
@@ -38,14 +195,32 @@ const ATTACK_ICONS = {
 };
 
 /* ── Init ── */
-document.addEventListener('DOMContentLoaded', () => {
-  initClock();
+
+function initApp() {
   initMap();
   initCharts();
   initWebSocket();
   fetchDashboard();
   setInterval(fetchDashboard, 15000);
   setTimeout(injectDemo, 1000);
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  initClock();
+
+  // Check whether the server requires MFA before deciding how to pre-fill the UI.
+  try {
+    const s = await fetch('/api/auth/mfa/status');
+    const d = await s.json();
+    AUTH.mfaRequired = !!d.mfa_enabled;
+  } catch(_) {}
+
+  if (AUTH.isAuthenticated()) {
+    showDashboard();
+    initApp();
+  } else {
+    showLoginOverlay();
+  }
 });
 
 /* ════════════════════════════════════════
@@ -63,6 +238,11 @@ function navigate(section, el) {
   document.getElementById('sidebar').classList.remove('open');
 
   // Lazy-load section data
+  if (section === 'intel') {
+    if (!state.loaded.intel) { loadIntel(); state.loaded.intel = true; }
+    // Leaflet needs invalidateSize when container goes from hidden to visible
+    setTimeout(() => { if (state.map) state.map.invalidateSize(); }, 50);
+  }
   if (section === 'cbee'  && !state.loaded.cbee)  { loadCBEE();  state.loaded.cbee = true; }
   if (section === 'gadcf' && !state.loaded.gadcf) { initGADCF(); loadGADCF(); state.loaded.gadcf = true; }
   if (section === 'fhim'  && !state.loaded.fhim)  { loadFHIM();  state.loaded.fhim = true; }
@@ -170,23 +350,35 @@ function setWs(c) {
 function addFeed(e) {
   state.feedItems.unshift(e);
   if (state.feedItems.length > 500) state.feedItems.pop();
-  renderFeedInto('feed-list', 'filter-type', 'filter-sev', 120);
+  renderFeedInto('feed-list', 'filter-type', 'filter-sev', 200);
   if (document.getElementById('sec-events').classList.contains('active')) renderEventsPage();
 }
 function buildFeedItem(e) {
   const icon = ATTACK_ICONS[e.attack_type]||ATTACK_ICONS.unknown;
   const sev = e.severity||'low';
-  const t = e.timestamp ? new Date(e.timestamp*1000).toISOString().slice(11,19) : '—';
+  let ts = '—';
+  if (e.timestamp) {
+    const d = new Date(e.timestamp * 1000);
+    const date = d.toISOString().slice(0,10);
+    const time = d.toISOString().slice(11,19);
+    const today = new Date().toISOString().slice(0,10);
+    ts = date === today ? time : `${date} ${time}`;
+  }
   const div = document.createElement('div');
   div.className = `feed-item ${sev}`;
-  div.innerHTML = `<span class="feed-sev ${sev}">${sev.toUpperCase()}</span>
-    <i class="fa-solid ${icon}" style="color:var(--t4);font-size:10px"></i>
-    <span class="feed-ip">${e.src_ip}</span>
-    <span style="color:var(--t4)">&#8594;</span>
-    <span class="feed-type">${(e.attack_type||'').replace(/_/g,' ')}</span>
-    <span style="color:var(--t4)">:${e.dst_port}</span>
-    <span class="feed-src">[${e.honeypot_source||'?'}]</span>
-    <span class="feed-time">${t}</span>`;
+  div.innerHTML = `
+    <div class="feed-item-row">
+      <span class="feed-sev ${sev}">${sev.toUpperCase()}</span>
+      <i class="fa-solid ${icon}" style="color:var(--t4);font-size:12px"></i>
+      <span class="feed-ip">${e.src_ip}</span>
+      <span style="color:var(--t4)">&#8594;</span>
+      <span class="feed-type">${(e.attack_type||'').replace(/_/g,' ')}</span>
+      <span style="color:var(--t4)">:${e.dst_port}</span>
+      <span class="feed-src">[${e.honeypot_source||'?'}]</span>
+    </div>
+    <div class="feed-time">
+      <i class="fa-regular fa-clock"></i>${ts}
+    </div>`;
   div.onclick = () => openModal(e.src_ip);
   return div;
 }
@@ -199,9 +391,9 @@ function renderFeedInto(listId, typeId, sevId, cap) {
   list.innerHTML = '';
   items.forEach(e => list.appendChild(buildFeedItem(e)));
 }
-function applyFilter() { renderFeedInto('feed-list','filter-type','filter-sev',120); }
+function applyFilter() { renderFeedInto('feed-list','filter-type','filter-sev',200); }
 function clearFeed() { state.feedItems=[]; document.getElementById('feed-list').innerHTML='<div class="feed-empty"><i class="fa-solid fa-broom" style="font-size:24px;color:var(--border2)"></i>Cleared</div>'; }
-function renderEventsPage() { renderFeedInto('events-page-list','events-filter-type','events-filter-sev',300); }
+function renderEventsPage() { renderFeedInto('events-page-list','events-filter-type','events-filter-sev',500); }
 function applyEventsFilter() { renderEventsPage(); }
 function clearEventsPage() { document.getElementById('events-page-list').innerHTML='<div class="feed-empty">Cleared</div>'; }
 
@@ -352,13 +544,15 @@ async function loadFullEnvs() {
           const cmds = (s.commands||[]).length;
           const dur = s.duration_secs ? s.duration_secs.toFixed(1)+'s' : '—';
           const ago = s.start_time ? timeSince(s.start_time) : '—';
-          return `<tr>
-            <td style="color:var(--cyan);font-weight:700">${s.src_ip||'—'}</td>
+          const ip = s.src_ip||'—';
+          return `<tr style="cursor:pointer" onclick="openHpModal('${ip}')">
+            <td style="color:var(--cyan);font-weight:700">${ip}</td>
             <td style="color:var(--t2)">${s.protocol||'ssh'}</td>
             <td style="color:var(--t3)">${s.username||'—'}</td>
             <td style="color:var(--purple);font-weight:600">${cmds}</td>
             <td style="color:var(--t3)">${dur}</td>
             <td style="color:var(--t4)">${ago}</td>
+            <td><button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();openHpModal('${ip}')"><i class="fa-solid fa-magnifying-glass"></i></button></td>
           </tr>`;
         }).join('');
       }
@@ -419,8 +613,129 @@ function closeModal() { document.getElementById('profile-modal').classList.add('
 async function blockIP() {
   if (!state.selectedIP) return;
   if (!confirm(`Block ${state.selectedIP}?\nThis adds an iptables DROP rule.`)) return;
-  try { await fetch('/api/response/block',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({src_ip:state.selectedIP})}); } catch(e) {}
+  try {
+    await fetch('/api/response/block', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...AUTH.header() },
+      body: JSON.stringify({ src_ip: state.selectedIP }),
+    });
+  } catch(e) {}
   closeModal(); fetchStats();
+}
+
+/* ════════════════════════════════════════
+   HONEYPOT IP DETAIL MODAL
+════════════════════════════════════════ */
+
+function closeHpModal() {
+  document.getElementById('hp-modal').classList.add('hidden');
+}
+
+async function openHpModal(ip) {
+  const modal = document.getElementById('hp-modal');
+  const body  = document.getElementById('hp-modal-body');
+  document.getElementById('hp-modal-ip').textContent = ip;
+  body.innerHTML = '<div style="text-align:center;color:var(--t4);padding:32px"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+  modal.classList.remove('hidden');
+
+  try {
+    const d = await fetch(`/api/honeypots/sessions/${ip}`).then(r => r.json());
+
+    const sev = c => c === 'critical' ? '#f43f5e' : c === 'high' ? '#f59e0b' : c === 'medium' ? '#a855f7' : '#64748b';
+
+    // ── Summary chips ─────────────────────────────────────────────────────
+    const chips = [
+      { label: 'Sessions',    val: d.session_count,                      color: '#22d3ee' },
+      { label: 'Events',      val: d.event_count,                        color: '#f59e0b' },
+      { label: 'Commands',    val: d.all_commands.length,                 color: '#a855f7' },
+      { label: 'Ports hit',   val: (d.ports_hit||[]).join(', ')||'—',    color: '#10b981' },
+    ].map(c => `<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;flex:1;min-width:100px">
+      <div style="font-size:20px;font-weight:800;color:${c.color}">${c.val}</div>
+      <div style="font-size:11px;color:var(--t4);margin-top:2px">${c.label}</div>
+    </div>`).join('');
+
+    // ── Credentials tried ────────────────────────────────────────────────
+    const credRows = (d.sessions||[]).filter(s=>s.username||s.password).map(s =>
+      `<tr><td style="color:#f59e0b;font-family:monospace">${s.username||'—'}</td>
+           <td style="color:#f43f5e;font-family:monospace">${s.password||'—'}</td>
+           <td style="color:var(--t4);font-size:11px">${s.start_time ? timeSince(s.start_time) : '—'}</td></tr>`
+    ).join('');
+
+    // ── Commands ──────────────────────────────────────────────────────────
+    const cmdRows = d.all_commands.length
+      ? d.all_commands.map(c =>
+          `<tr><td style="font-family:monospace;color:#22d3ee;word-break:break-all">${escHtml(c.cmd)}</td>
+               <td style="color:var(--t4);font-size:11px;white-space:nowrap">${c.time ? timeSince(c.time) : '—'}</td></tr>`
+        ).join('')
+      : '<tr><td colspan="2" style="color:var(--t4);text-align:center;padding:16px">No commands recorded</td></tr>';
+
+    // ── Attack events ─────────────────────────────────────────────────────
+    const evtRows = (d.events||[]).slice(0,30).map(e =>
+      `<tr>
+        <td><span style="color:${sev(e.severity)};font-weight:600;font-size:11px">${(e.severity||'').toUpperCase()}</span></td>
+        <td style="color:var(--t2)">${(e.attack_type||'').replace(/_/g,' ')}</td>
+        <td style="color:var(--t3)">:${e.dst_port||'?'}</td>
+        <td style="color:var(--t4);font-size:11px">${e.timestamp ? timeSince(e.timestamp) : '—'}</td>
+      </tr>`
+    ).join('') || '<tr><td colspan="4" style="color:var(--t4);text-align:center;padding:16px">No events</td></tr>';
+
+    // ── Attack types ──────────────────────────────────────────────────────
+    const typeChips = (d.attack_types||[]).map(t =>
+      `<span style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3);
+        border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">${t.replace(/_/g,' ')}</span>`
+    ).join(' ') || '<span style="color:var(--t4);font-size:12px">None</span>';
+
+    body.innerHTML = `
+      <!-- Summary -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">${chips}</div>
+
+      <!-- Attack types -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Attack Types</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${typeChips}</div>
+      </div>
+
+      ${credRows ? `
+      <!-- Credentials -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Credentials Tried</div>
+        <div style="overflow-x:auto;max-height:160px;overflow-y:auto">
+          <table class="data-table">
+            <thead><tr><th>Username</th><th>Password</th><th>When</th></tr></thead>
+            <tbody>${credRows}</tbody>
+          </table>
+        </div>
+      </div>` : ''}
+
+      <!-- Commands -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Commands Executed <span style="color:var(--t4);font-weight:400">(${d.all_commands.length})</span></div>
+        <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
+          <table class="data-table">
+            <thead><tr><th>Command</th><th>When</th></tr></thead>
+            <tbody>${cmdRows}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Events -->
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Alert Events <span style="color:var(--t4);font-weight:400">(${d.event_count} total, showing ${Math.min(d.event_count,30)})</span></div>
+        <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
+          <table class="data-table">
+            <thead><tr><th>Severity</th><th>Type</th><th>Port</th><th>When</th></tr></thead>
+            <tbody>${evtRows}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    body.innerHTML = `<div style="color:#f43f5e;padding:24px">Failed to load data for ${ip}</div>`;
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 /* ════════════════════════════════════════
@@ -583,72 +898,6 @@ function renderFHIMRounds(rounds) {
     el.appendChild(d);
   });
 }
-
-/* ════════════════════════════════════════
-   ASHRTA
-════════════════════════════════════════ */
-async function loadASHRTA() {
-  try {
-    const [rd, pd] = await Promise.all([fetch('/api/ashrta/reports').then(r=>r.json()), fetch('/api/ashrta/patches').then(r=>r.json())]);
-    const reports = rd.reports||[];
-    if (reports.length) { updateASHRTA(reports[0]); renderTrend(reports); }
-    renderPatches(pd.patches||[]);
-  } catch(e) {}
-}
-function updateASHRTA(r) {
-  const s = r.hardening_score||0;
-  const col = s>=85?'#10b981':s>=70?'#f59e0b':'#f43f5e';
-  const sv = document.getElementById('ashrta-kpi-score'); sv.textContent = s.toFixed(0)+'%'; sv.style.color = col;
-  setText('ashrta-kpi-passed', `${r.checks_passed||0}/${r.checks_total||10}`);
-  setText('ashrta-kpi-crit', r.critical_weaknesses||0);
-  setText('ashrta-kpi-patches', r.patches_applied||0);
-  const g = document.getElementById('ashrta-score-val'); g.textContent = s.toFixed(0)+'%'; g.style.color = col;
-  drawGauge('ashrta-gauge', s, 160, 90);
-  const meta = document.getElementById('ashrta-meta');
-  meta.innerHTML = [['Checks',`${r.checks_passed||0}/${r.checks_total||10}`,(r.checks_passed>=(r.checks_total||10))?'#10b981':'#f59e0b'],['Critical',''+(r.critical_weaknesses||0),(r.critical_weaknesses||0)?'#f43f5e':'#10b981'],['Patches',''+(r.patches_applied||0),'#a855f7'],['Report',r.report_id||'—','var(--t3)']]
-    .map(([l,v,c])=>`<div class="meta-row"><span class="meta-label">${l}</span><span class="meta-value" style="color:${c}">${v}</span></div>`).join('');
-  if (r.full_results) renderChecks(r.full_results);
-}
-function renderTrend(reports) {
-  const el = document.getElementById('ashrta-trend'); el.innerHTML='';
-  [...reports].reverse().forEach(r=>{
-    const s=r.hardening_score||0, col=s>=85?'#10b981':s>=70?'#f59e0b':'#f43f5e';
-    const b=document.createElement('div'); b.className='t-bar';
-    b.style.height=Math.max((s/100)*56,3)+'px'; b.style.background=col;
-    b.dataset.tip=s.toFixed(0)+'%'+(r.timestamp?' — '+timeSince(r.timestamp):'');
-    el.appendChild(b);
-  });
-}
-async function ashtaRun() {
-  const btn = document.getElementById('ashrta-run-btn');
-  btn.disabled=true; btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Running…';
-  try { const d = await (await fetch('/api/ashrta/run',{method:'POST'})).json(); updateASHRTA(d); if(d.full_results) renderChecks(d.full_results); await loadASHRTA(); } catch(e) {}
-  btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-play"></i> Run Cycle';
-}
-function renderChecks(results) {
-  const el = document.getElementById('ashrta-checks');
-  const passed = results.filter(r=>r.passed).length;
-  setText('ashrta-checks-sum', `${passed}/${results.length} passed`);
-  el.innerHTML='';
-  results.forEach(r=>{
-    const d=document.createElement('div'); d.className='check-card '+(r.passed?'pass':'fail');
-    d.innerHTML=`<div class="check-icon"><i class="fa-solid ${r.passed?'fa-check':'fa-xmark'}" style="color:${r.passed?'#10b981':'#f43f5e'}"></i></div><div style="flex:1"><div class="check-name">${(r.check_name||'').replace(/_/g,' ')}<span style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:3px;text-transform:uppercase;background:${sevBg(r.severity)};color:${sevC(r.severity)}">${r.severity}</span><span class="conf-lbl">${((r.confidence||0)*100).toFixed(0)}% conf</span></div><div class="check-desc">${r.description||''}</div>${!r.passed&&r.recommendation?`<div class="check-rec"><i class="fa-solid fa-wrench" style="margin-right:4px"></i>${r.recommendation}</div>`:''}</div>`;
-    el.appendChild(d);
-  });
-}
-function renderPatches(patches) {
-  const el = document.getElementById('ashrta-patches');
-  if (!patches.length) { el.innerHTML='<div style="color:var(--t4);text-align:center;padding:32px;font-size:12px">No patches yet — run a cycle</div>'; return; }
-  el.innerHTML='';
-  patches.forEach(p=>{
-    const sc=sevC(p.severity);
-    const card=document.createElement('div'); card.className='patch-card';
-    card.innerHTML=`<div class="patch-top"><i class="fa-solid fa-wrench" style="color:#10b981;font-size:11px"></i><span style="font-weight:600;font-size:12px;flex:1">${(p.weakness||'').replace(/_/g,' ')}</span><span style="font-size:9px;font-weight:800;color:${sc};text-transform:uppercase">${p.severity}</span><span class="patch-target">${p.config_target||''}</span><span style="margin-left:auto;color:#10b981;font-size:10px"><i class="fa-solid fa-check"></i> Applied</span></div><div class="patch-diff"><div><div class="diff-lbl">Before</div><div class="diff-box before">${p.before||''}</div></div><div><div class="diff-lbl">After</div><div class="diff-box after">${p.after||''}</div></div></div>`;
-    el.appendChild(card);
-  });
-}
-function sevC(s){return {critical:'#f43f5e',high:'#f59e0b',medium:'#a855f7',low:'#64748b'}[s]||'#64748b';}
-function sevBg(s){return {critical:'rgba(244,63,94,0.2)',high:'rgba(245,158,11,0.2)',medium:'rgba(168,85,247,0.2)',low:'rgba(100,116,139,0.15)'}[s]||'rgba(100,116,139,0.15)';}
 
 /* ════════════════════════════════════════
    DEMO DATA (when no live MongoDB)

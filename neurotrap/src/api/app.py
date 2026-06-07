@@ -6,6 +6,8 @@ from __future__ import annotations
 import os
 import time
 import logging
+import urllib.request
+import json as _json
 from functools import wraps
 
 from flask import Flask, jsonify, request, render_template, abort, redirect
@@ -14,10 +16,17 @@ from flask_socketio import SocketIO, emit
 try:
     from flask_jwt_extended import (
         JWTManager, create_access_token, jwt_required, get_jwt_identity,
+        get_jwt,
     )
     JWT_AVAILABLE = True
 except ImportError:
     JWT_AVAILABLE = False
+
+try:
+    import pyotp
+    PYOTP_AVAILABLE = True
+except ImportError:
+    PYOTP_AVAILABLE = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -54,6 +63,30 @@ def get_db():
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASS", "neurotrap2024")
 
+ANALYST_USER = os.getenv("ANALYST_USER", "analyst")
+ANALYST_PASS = os.getenv("ANALYST_PASS", "analyst2024")
+
+# username → {password, role}
+USERS = {
+    ADMIN_USER:   {"password": ADMIN_PASS,   "role": "admin"},
+    ANALYST_USER: {"password": ANALYST_PASS, "role": "analyst"},
+}
+
+# When MFA_ENABLED=1, every login requires a valid TOTP code.
+# The secret is read from MFA_SECRET (base32). Generate one with:
+#   python -c "import pyotp; print(pyotp.random_base32())"
+# then set MFA_SECRET=<value> in .env and scan the QR from /api/auth/otp/setup.
+MFA_ENABLED = os.getenv("MFA_ENABLED", "0") == "1"
+MFA_SECRET  = os.getenv("MFA_SECRET", "")
+
+
+def _verify_totp(code: str) -> bool:
+    """Return True if code is a valid current TOTP for MFA_SECRET."""
+    if not PYOTP_AVAILABLE or not MFA_SECRET:
+        return False
+    totp = pyotp.TOTP(MFA_SECRET)
+    return totp.verify(code, valid_window=1)
+
 
 @app.route("/api/auth/login", methods=["POST"])
 def login():
@@ -61,14 +94,23 @@ def login():
     username = data.get("username", "")
     password = data.get("password", "")
 
-    if username != ADMIN_USER or password != ADMIN_PASS:
+    user = USERS.get(username)
+    if not user or user["password"] != password:
         return jsonify({"error": "Invalid credentials"}), 401
 
-    if JWT_AVAILABLE:
-        token = create_access_token(identity=username)
-        return jsonify({"access_token": token})
+    if MFA_ENABLED and user["role"] == "admin":
+        otp_code = data.get("otp", "")
+        if not otp_code:
+            return jsonify({"error": "OTP required", "mfa_required": True}), 401
+        if not _verify_totp(otp_code):
+            return jsonify({"error": "Invalid OTP code"}), 401
 
-    return jsonify({"access_token": "dev-token-no-jwt"})
+    role = user["role"]
+    if JWT_AVAILABLE:
+        token = create_access_token(identity=username, additional_claims={"role": role})
+        return jsonify({"access_token": token, "role": role, "mfa_enabled": MFA_ENABLED})
+
+    return jsonify({"access_token": "dev-token-no-jwt", "role": role, "mfa_enabled": MFA_ENABLED})
 
 
 def require_auth(f):
@@ -78,6 +120,78 @@ def require_auth(f):
             return jwt_required()(f)(*args, **kwargs)
         return f(*args, **kwargs)
     return decorated
+
+
+def require_admin(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if JWT_AVAILABLE:
+            @jwt_required()
+            def inner(*a, **kw):
+                claims = get_jwt()
+                if claims.get("role") != "admin":
+                    return jsonify({"error": "Admin access required"}), 403
+                return f(*a, **kw)
+            return inner(*args, **kwargs)
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/api/auth/otp/setup", methods=["GET"])
+@require_admin
+def otp_setup():
+    """Return a new TOTP secret + provisioning URI for first-time setup.
+
+    If MFA_SECRET is already set in .env, returns the existing secret's URI
+    (idempotent). The caller should display the URI as a QR code and then
+    set MFA_SECRET + MFA_ENABLED=1 in .env and restart the API container.
+    """
+    if not PYOTP_AVAILABLE:
+        return jsonify({"error": "pyotp not installed in this environment"}), 500
+
+    secret = MFA_SECRET if MFA_SECRET else pyotp.random_base32()
+    totp = pyotp.TOTP(secret)
+    uri  = totp.provisioning_uri(name=ADMIN_USER, issuer_name="NeuroTrap")
+
+    try:
+        import qrcode, io, base64
+        img = qrcode.make(uri)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    except ImportError:
+        qr_b64 = None
+
+    return jsonify({
+        "secret": secret,
+        "provisioning_uri": uri,
+        "qr_png_base64": qr_b64,
+        "instructions": (
+            "1. Scan the QR code (or enter the secret) in your authenticator app. "
+            "2. Add MFA_SECRET=<secret> and MFA_ENABLED=1 to .env. "
+            "3. Restart the API container: docker compose restart api. "
+            "4. Future logins will require the 6-digit TOTP code in the 'otp' field."
+        ),
+    })
+
+
+@app.route("/api/auth/otp/verify", methods=["POST"])
+def otp_verify():
+    """Verify a TOTP code without a full login (useful for UI pre-check)."""
+    if not PYOTP_AVAILABLE:
+        return jsonify({"error": "pyotp not installed"}), 500
+    data = request.get_json(silent=True) or {}
+    code = data.get("otp", "")
+    if not code:
+        return jsonify({"valid": False, "error": "otp field required"}), 400
+    valid = _verify_totp(code)
+    return jsonify({"valid": valid})
+
+
+@app.route("/api/auth/mfa/status", methods=["GET"])
+def mfa_status():
+    """Public endpoint — lets the login UI know whether MFA is required."""
+    return jsonify({"mfa_enabled": MFA_ENABLED, "mfa_configured": bool(MFA_SECRET)})
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────
@@ -194,7 +308,7 @@ def get_attacker(src_ip: str):
 # ── Response API ───────────────────────────────────────────────────────────────
 
 @app.route("/api/response/block", methods=["POST"])
-@require_auth
+@require_admin
 def manual_block():
     data = request.get_json(silent=True) or {}
     src_ip = data.get("src_ip", "")
@@ -254,6 +368,51 @@ HONEYPOT_SENSORS = [
     {"name": "ftp",    "protocol": "FTP",    "port": 21},
     {"name": "telnet", "protocol": "Telnet", "port": 23},
 ]
+
+
+@app.route("/api/honeypots/sessions/<src_ip>", methods=["GET"])
+def get_honeypot_ip_detail(src_ip):
+    """All sessions + alert events for a specific attacker IP."""
+    db = get_db()
+    sessions, events = [], []
+    if db is not None:
+        try:
+            sessions = list(
+                db["cowrie_sessions"].find({"src_ip": src_ip}, {"_id": 0})
+                .sort("start_time", -1).limit(100)
+            )
+        except Exception:
+            sessions = []
+        try:
+            events = list(
+                db["alert_events"].find({"src_ip": src_ip}, {"_id": 0})
+                .sort("timestamp", -1).limit(200)
+            )
+        except Exception:
+            events = []
+
+    all_commands = []
+    for s in sessions:
+        for cmd in s.get("commands", []):
+            all_commands.append({"cmd": cmd, "session_id": s.get("session_id"), "time": s.get("start_time")})
+
+    usernames  = list({s.get("username") for s in sessions if s.get("username")})
+    passwords  = list({s.get("password") for s in sessions if s.get("password")})
+    attack_types = list({e.get("attack_type") for e in events if e.get("attack_type")})
+    ports_hit  = list({e.get("dst_port") for e in events if e.get("dst_port")})
+
+    return jsonify({
+        "src_ip": src_ip,
+        "session_count": len(sessions),
+        "event_count": len(events),
+        "usernames_tried": usernames,
+        "passwords_tried": passwords,
+        "attack_types": attack_types,
+        "ports_hit": ports_hit,
+        "sessions": sessions,
+        "events": events[:50],
+        "all_commands": all_commands,
+    })
 
 
 @app.route("/api/honeypots", methods=["GET"])
@@ -419,6 +578,7 @@ def get_cbee_injections():
     ]})
 
 @app.route("/api/cbee/score", methods=["POST"])
+@require_admin
 def score_session_bias():
     data = request.get_json(silent=True) or {}
     try:
@@ -446,6 +606,7 @@ def get_gadcf_assets():
     ]})
 
 @app.route("/api/gadcf/generate", methods=["POST"])
+@require_admin
 def gadcf_generate():
     data = request.get_json(silent=True) or {}
     try:
@@ -484,11 +645,23 @@ def get_ashrta_reports():
     ashrta = _get_ashrta()
     if ashrta:
         return jsonify({"reports": ashrta.get_reports()})
+    _demo_checks = [
+        {"check_name":"ssh_banner_fingerprint","passed":True, "severity":"critical","confidence":0.97,"description":"SSH banner matches real OpenSSH 9.3p1 Ubuntu","recommendation":""},
+        {"check_name":"timing_analysis",       "passed":True, "severity":"high",   "confidence":0.91,"description":"Response jitter within normal range (±142ms)","recommendation":""},
+        {"check_name":"os_kernel_consistency", "passed":False,"severity":"high",   "confidence":0.83,"description":"Kernel version mismatch in /proc/version vs uname","recommendation":"Align honeyfs /proc/version with reported uname string"},
+        {"check_name":"filesystem_completeness","passed":True,"severity":"medium", "confidence":0.88,"description":"2800 filesystem entries — passes density check","recommendation":""},
+        {"check_name":"process_tree_plausibility","passed":True,"severity":"medium","confidence":0.90,"description":"127 processes, realistic PID spread","recommendation":""},
+        {"check_name":"network_stack_fingerprint","passed":False,"severity":"critical","confidence":0.95,"description":"TCP window size and MSS reveal honeypot stack","recommendation":"Set net.ipv4.tcp_rmem to match Ubuntu 24.04 defaults"},
+        {"check_name":"service_response_behavior","passed":True,"severity":"medium","confidence":0.86,"description":"FTP/SSH banners consistent with declared OS","recommendation":""},
+        {"check_name":"cpu_memory_artifacts",  "passed":True, "severity":"low",   "confidence":0.79,"description":"cpuinfo and meminfo entries look plausible","recommendation":""},
+        {"check_name":"uptime_consistency",    "passed":True, "severity":"low",   "confidence":0.82,"description":"Uptime correlates with last reboot in wtmp","recommendation":""},
+        {"check_name":"error_message_authenticity","passed":True,"severity":"medium","confidence":0.93,"description":"Error messages match real OpenSSH error strings","recommendation":""},
+    ]
     return jsonify({"reports": [
-        {"report_id":"r1a2b3","timestamp":time.time()-86400*3,"hardening_score":62.0,"checks_passed":6,"checks_total":10,"critical_weaknesses":2,"patches_generated":4,"patches_applied":4},
-        {"report_id":"c4d5e6","timestamp":time.time()-86400*2,"hardening_score":75.0,"checks_passed":7,"checks_total":10,"critical_weaknesses":1,"patches_generated":3,"patches_applied":3},
-        {"report_id":"f7g8h9","timestamp":time.time()-86400*1,"hardening_score":82.0,"checks_passed":8,"checks_total":10,"critical_weaknesses":0,"patches_generated":2,"patches_applied":2},
-        {"report_id":"i0j1k2","timestamp":time.time()-3600,   "hardening_score":90.0,"checks_passed":9,"checks_total":10,"critical_weaknesses":0,"patches_generated":1,"patches_applied":1},
+        {"report_id":"r1a2b3","timestamp":time.time()-86400*3,"hardening_score":62.0,"checks_passed":6,"checks_total":10,"critical_weaknesses":2,"patches_generated":4,"patches_applied":4,"full_results":_demo_checks},
+        {"report_id":"c4d5e6","timestamp":time.time()-86400*2,"hardening_score":75.0,"checks_passed":7,"checks_total":10,"critical_weaknesses":1,"patches_generated":3,"patches_applied":3,"full_results":_demo_checks},
+        {"report_id":"f7g8h9","timestamp":time.time()-86400*1,"hardening_score":82.0,"checks_passed":8,"checks_total":10,"critical_weaknesses":0,"patches_generated":2,"patches_applied":2,"full_results":_demo_checks},
+        {"report_id":"i0j1k2","timestamp":time.time()-3600,   "hardening_score":90.0,"checks_passed":9,"checks_total":10,"critical_weaknesses":0,"patches_generated":1,"patches_applied":1,"full_results":_demo_checks},
     ]})
 
 @app.route("/api/ashrta/patches", methods=["GET"])
@@ -504,6 +677,7 @@ def get_ashrta_patches():
     ]})
 
 @app.route("/api/ashrta/run", methods=["POST"])
+@require_admin
 def ashrta_run_cycle():
     ashrta = _get_ashrta()
     if ashrta:
@@ -620,6 +794,7 @@ def twin_detail(src_ip: str):
 
 
 @app.route("/api/twin/build", methods=["POST"])
+@require_admin
 def twin_build():
     adt = _get_adt()
     if not adt:
@@ -634,6 +809,7 @@ def twin_build():
 
 
 @app.route("/api/twin/simulate", methods=["POST"])
+@require_admin
 def twin_simulate():
     data = request.get_json(silent=True) or {}
     steps = min(int(data.get("steps", 5)), 12)
@@ -689,6 +865,7 @@ def soc_reports():
 
 
 @app.route("/api/soc/report", methods=["POST"])
+@require_admin
 def soc_report():
     data = request.get_json(silent=True) or {}
     src_ip = (data.get("src_ip") or "").strip()
@@ -701,12 +878,166 @@ def soc_report():
 
 
 @app.route("/api/soc/chat", methods=["POST"])
+@require_admin
 def soc_chat():
     data = request.get_json(silent=True) or {}
     soc = _get_soc()
     if soc is None:
         return jsonify({"answer": "Analyst offline.", "source": "heuristic"})
     return jsonify(soc.answer_question(data.get("question", "")))
+
+
+# ── Threat Intelligence API ───────────────────────────────────────────────────
+
+def _resolve_countries(db, ips: list[str]) -> dict[str, str]:
+    """Batch-resolve countries for IPs that have no country set yet.
+    Uses ip-api.com free batch endpoint (no key, max 100 IPs).
+    Results are cached back into attacker_profiles immediately.
+    """
+    if not ips:
+        return {}
+    resolved: dict[str, str] = {}
+    try:
+        payload = _json.dumps([{"query": ip, "fields": "query,country"} for ip in ips[:100]]).encode()
+        req = urllib.request.Request(
+            "http://ip-api.com/batch?fields=query,country",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            results = _json.loads(resp.read())
+        for r in results:
+            country = (r.get("country") or "Unknown").replace("The Netherlands", "Netherlands")
+            ip = r.get("query", "")
+            if ip:
+                resolved[ip] = country
+                try:
+                    db["attacker_profiles"].update_one(
+                        {"src_ip": ip}, {"$set": {"country": country}}
+                    )
+                except Exception:
+                    pass
+    except Exception as exc:
+        logger.warning("GeoIP batch lookup failed: %s", exc)
+    return resolved
+
+
+@app.route("/api/intel", methods=["GET"])
+def get_threat_intel():
+    db = get_db()
+    now = time.time()
+
+    if db is None:
+        return jsonify({
+            "iocs": [],
+            "top_countries": [],
+            "top_ports": [],
+            "attack_type_dist": [],
+            "campaigns": [],
+            "summary": {"total_iocs": 0, "countries_seen": 0, "active_campaigns": 0, "top_threat": "N/A"},
+        })
+
+    # IOC list — top attacker IPs by threat score
+    iocs = []
+    try:
+        profiles = list(db["attacker_profiles"].find({}, {"_id": 0}).sort("threat_score", -1).limit(50))
+
+        # Resolve countries for any IP that still has none
+        unresolved = [p["src_ip"] for p in profiles if not p.get("country")]
+        if unresolved:
+            geo = _resolve_countries(db, unresolved)
+            for p in profiles:
+                if not p.get("country") and p["src_ip"] in geo:
+                    p["country"] = geo[p["src_ip"]]
+
+        for p in profiles:
+            iocs.append({
+                "ip": p.get("src_ip", ""),
+                "threat_score": p.get("threat_score", 0),
+                "intent": p.get("classified_intent", "unknown"),
+                "tier": p.get("attacker_tier", "unknown"),
+                "country": p.get("country") or "Unknown",
+                "first_seen": p.get("first_seen", now),
+                "last_seen": p.get("last_seen", now),
+                "session_count": p.get("session_count", 0),
+                "ttp_count": len(p.get("ttps", [])),
+                "is_blocked": p.get("is_blocked", False),
+                "campaign_id": p.get("campaign_id", ""),
+            })
+    except Exception:
+        pass
+
+    # Top countries
+    country_counts: dict = {}
+    for ioc in iocs:
+        c = ioc["country"] or "Unknown"
+        country_counts[c] = country_counts.get(c, 0) + 1
+    top_countries = sorted(
+        [{"country": k, "count": v} for k, v in country_counts.items()],
+        key=lambda x: x["count"], reverse=True
+    )[:15]
+
+    # Top targeted ports
+    top_ports = []
+    try:
+        port_pipeline = [
+            {"$group": {"_id": "$dst_port", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10},
+        ]
+        for doc in db["alert_events"].aggregate(port_pipeline):
+            if doc["_id"]:
+                top_ports.append({"port": doc["_id"], "count": doc["count"]})
+    except Exception:
+        pass
+
+    # Attack type distribution
+    attack_dist = []
+    try:
+        for doc in db["alert_events"].aggregate([
+            {"$group": {"_id": "$attack_type", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 8},
+        ]):
+            if doc["_id"]:
+                attack_dist.append({"type": doc["_id"], "count": doc["count"]})
+    except Exception:
+        pass
+
+    # Active campaigns
+    campaigns = []
+    try:
+        camp_map: dict = {}
+        for p in db["attacker_profiles"].find({"campaign_id": {"$ne": ""}}, {"_id": 0}):
+            cid = p.get("campaign_id", "")
+            if not cid:
+                continue
+            if cid not in camp_map:
+                camp_map[cid] = {"campaign_id": cid, "actor_count": 0, "max_score": 0, "intents": set()}
+            camp_map[cid]["actor_count"] += 1
+            camp_map[cid]["max_score"] = max(camp_map[cid]["max_score"], p.get("threat_score", 0))
+            camp_map[cid]["intents"].add(p.get("classified_intent", ""))
+        for c in camp_map.values():
+            c["intents"] = list(c["intents"])
+            campaigns.append(c)
+        campaigns.sort(key=lambda x: x["max_score"], reverse=True)
+    except Exception:
+        pass
+
+    top_threat = iocs[0]["ip"] if iocs else "N/A"
+    return jsonify({
+        "iocs": iocs,
+        "top_countries": top_countries,
+        "top_ports": top_ports,
+        "attack_type_dist": attack_dist,
+        "campaigns": campaigns,
+        "summary": {
+            "total_iocs": len(iocs),
+            "countries_seen": len(country_counts),
+            "active_campaigns": len(campaigns),
+            "top_threat": top_threat,
+        },
+    })
 
 
 # ── WebSocket live feed ───────────────────────────────────────────────────────

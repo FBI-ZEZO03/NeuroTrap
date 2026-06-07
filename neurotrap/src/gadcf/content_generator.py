@@ -13,7 +13,6 @@ Generates contextually coherent fake assets per attacker profile:
 """
 
 from __future__ import annotations
-import json
 import logging
 import random
 import string
@@ -24,13 +23,15 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 try:
-    import requests
-    REQUESTS_AVAILABLE = True
+    from src.soc_analyst.llm_client import llm_complete, llm_available
 except ImportError:
-    REQUESTS_AVAILABLE = False
+    def llm_complete(*a, **kw): return None  # type: ignore[misc]
+    def llm_available() -> bool: return False  # type: ignore[misc]
 
-OLLAMA_BASE = "http://localhost:11434"
-OLLAMA_MODEL = "mistral"
+GADCF_MODEL_SYSTEM = (
+    "You are a red-team content generator. Produce realistic fake corporate files "
+    "for honeypot deception. Output ONLY the file content — no explanations, no markdown fences."
+)
 
 
 @dataclass
@@ -64,7 +65,7 @@ class ContentGenerator:
     INDUSTRIES = ["financial_services", "healthcare", "e_commerce", "saas_startup", "government", "energy"]
 
     def __init__(self, use_llm: bool = True):
-        self.use_llm = use_llm and REQUESTS_AVAILABLE and self._ollama_available()
+        self.use_llm = use_llm and llm_available()
 
     def generate_package(
         self,
@@ -91,27 +92,18 @@ class ContentGenerator:
 
     # ── LLM generation ─────────────────────────────────────────────────────────
 
-    def _llm_generate(self, prompt: str, max_tokens: int = 600) -> Optional[str]:
+    def _llm_generate(self, prompt: str, max_tokens: int = 700) -> Optional[str]:
         if not self.use_llm:
             return None
-        try:
-            resp = requests.post(
-                f"{OLLAMA_BASE}/api/generate",
-                json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False,
-                      "options": {"num_predict": max_tokens, "temperature": 0.7}},
-                timeout=30,
-            )
-            if resp.ok:
-                return resp.json().get("response", "").strip()
-        except Exception as exc:
-            logger.debug("Ollama call failed: %s", exc)
-        return None
-
-    def _ollama_available(self) -> bool:
-        try:
-            return requests.get(f"{OLLAMA_BASE}/api/tags", timeout=2).ok
-        except Exception:
-            return False
+        result = llm_complete(
+            system=GADCF_MODEL_SYSTEM,
+            user=prompt,
+            max_tokens=max_tokens,
+            temperature=0.8,
+        )
+        if result:
+            logger.debug("GADCF LLM generated %d chars", len(result))
+        return result
 
     # ── Asset generators ───────────────────────────────────────────────────────
 
@@ -124,7 +116,7 @@ class ContentGenerator:
         ) or self._template_env(industry)
 
         return GeneratedAsset(aid, "env_file", f".env.{industry.replace('_','-')}.production",
-                              content, industry, intent, source="llm" if self.use_llm else "template")
+                              content, industry, intent, source="llm" if (self.use_llm and llm_available()) else "template")
 
     def _gen_email_thread(self, industry: str, intent: str, sophistication: str) -> GeneratedAsset:
         aid = _uid()
@@ -135,7 +127,7 @@ class ContentGenerator:
         ) or self._template_email(industry)
 
         return GeneratedAsset(aid, "email_thread", f"IT_thread_{_uid(4)}.eml",
-                              content, industry, intent, source="llm" if self.use_llm else "template")
+                              content, industry, intent, source="llm" if (self.use_llm and llm_available()) else "template")
 
     def _gen_code_repo(self, industry: str, intent: str, sophistication: str) -> GeneratedAsset:
         aid = _uid()
@@ -146,7 +138,7 @@ class ContentGenerator:
         ) or self._template_code(industry)
 
         return GeneratedAsset(aid, "code_repo", f"app_{_uid(4)}.py",
-                              content, industry, intent, source="llm" if self.use_llm else "template")
+                              content, industry, intent, source="llm" if (self.use_llm and llm_available()) else "template")
 
     def _gen_wiki_page(self, industry: str, intent: str, sophistication: str) -> GeneratedAsset:
         aid = _uid()
@@ -157,7 +149,7 @@ class ContentGenerator:
         ) or self._template_wiki(industry)
 
         return GeneratedAsset(aid, "wiki_page", f"RUNBOOK_{industry.upper()}_{_uid(4)}.md",
-                              content, industry, intent, source="llm" if self.use_llm else "template")
+                              content, industry, intent, source="llm" if (self.use_llm and llm_available()) else "template")
 
     def _gen_db_schema(self, industry: str, intent: str, sophistication: str) -> GeneratedAsset:
         aid = _uid()

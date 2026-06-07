@@ -49,6 +49,13 @@
       Response Log
     </div>
 
+    <div class="nav-label">Intelligence</div>
+
+    <div class="nav-item" data-section="intel" onclick="navigate('intel',this)">
+      <i class="fa-solid fa-globe nav-icon"></i>
+      Threat Intel
+    </div>
+
     <div class="nav-label">Innovations</div>
 
     <div class="nav-item" data-section="cbee" onclick="navigate('cbee',this)">
@@ -108,6 +115,9 @@
         <span id="ws-text">Connecting</span>
       </div>
       <div class="topbar-clock" id="clock"></div>
+      <button class="btn btn-secondary btn-sm" id="logout-btn" onclick="doLogout()" style="display:none" title="Sign out">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
     </div>
   </header>
 
@@ -147,25 +157,8 @@
         </div>
       </div>
 
-      <!-- Row 1: Map + Feed -->
+      <!-- Row 1: Feed + Top Countries -->
       <div class="grid-2-1 mb-4">
-        <div class="card">
-          <div class="card-head">
-            <i class="fa-solid fa-earth-americas" style="color:#22d3ee"></i>
-            Global Attack Origins
-            <div class="live-badge"><div class="live-dot"></div>LIVE</div>
-          </div>
-          <div class="card-body">
-            <div id="attack-map"></div>
-            <div class="map-legend">
-              <div class="map-legend-item"><div class="map-legend-dot" style="background:#f43f5e"></div>Critical</div>
-              <div class="map-legend-item"><div class="map-legend-dot" style="background:#f59e0b"></div>High</div>
-              <div class="map-legend-item"><div class="map-legend-dot" style="background:#a855f7"></div>Medium</div>
-              <div class="map-legend-item"><div class="map-legend-dot" style="background:#334155"></div>Low</div>
-            </div>
-          </div>
-        </div>
-
         <div class="card" style="display:flex;flex-direction:column">
           <div class="card-head">
             <i class="fa-solid fa-terminal" style="color:#22d3ee"></i>
@@ -192,6 +185,17 @@
           </div>
           <div class="feed-list" id="feed-list" style="min-height:280px">
             <div class="feed-empty"><i class="fa-solid fa-satellite-dish" style="font-size:24px;color:var(--border2)"></i>Waiting for events…</div>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex;flex-direction:column">
+          <div class="card-head">
+            <i class="fa-solid fa-earth-americas" style="color:#22d3ee"></i>
+            Top Attack Origins
+            <a href="javascript:navigate('intel',document.querySelector('[data-section=intel]'))" style="margin-left:auto;font-size:10px;color:var(--accent);font-weight:600;letter-spacing:.5px;text-transform:uppercase">View Map →</a>
+          </div>
+          <div class="card-body scroll-list" id="dash-top-countries" style="min-height:280px">
+            <div class="feed-empty"><i class="fa-solid fa-globe" style="font-size:22px;color:var(--border2)"></i>Loading…</div>
           </div>
         </div>
       </div>
@@ -316,7 +320,7 @@
             <button onclick="clearEventsPage()" class="btn btn-sm btn-secondary"><i class="fa-solid fa-trash-can"></i></button>
           </div>
         </div>
-        <div class="feed-list" id="events-page-list" style="flex:1;min-height:500px;max-height:700px"></div>
+        <div class="feed-list" id="events-page-list" style="flex:1;min-height:600px;max-height:900px"></div>
       </div>
     </section>
 
@@ -344,7 +348,7 @@
         <div class="card-head"><i class="fa-solid fa-terminal" style="color:#f59e0b"></i>Recent Attacker Sessions <span id="sessions-count" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span></div>
         <div style="overflow-x:auto">
           <table class="data-table">
-            <thead><tr><th>Source IP</th><th>Protocol</th><th>Username</th><th>Commands</th><th>Duration</th><th>Time</th></tr></thead>
+            <thead><tr><th>Source IP</th><th>Protocol</th><th>Username</th><th>Commands</th><th>Duration</th><th>Time</th><th></th></tr></thead>
             <tbody id="sessions-tbody">
               <tr><td colspan="6" style="text-align:center;color:var(--t4);padding:24px;font-family:var(--sans)">No sessions yet</td></tr>
             </tbody>
@@ -389,6 +393,91 @@
     <!-- ═══════════════════════════
          CBEE
     ═══════════════════════════ -->
+    <section class="section" id="sec-intel">
+      <div class="page-header">
+        <div class="page-title">Threat Intelligence</div>
+        <div class="page-subtitle">Live IOC feed · Geographic heatmap · Attack campaign tracking</div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="inno-kpi-row">
+        <div class="kpi-card" style="--kc:#22d3ee"><div class="kpi-icon"><i class="fa-solid fa-crosshairs"></i></div><div><div class="kpi-val" id="intel-kpi-iocs">—</div><div class="kpi-lbl">Total IOCs</div></div></div>
+        <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-earth-americas"></i></div><div><div class="kpi-val" id="intel-kpi-countries" style="color:#f59e0b">—</div><div class="kpi-lbl">Countries Seen</div></div></div>
+        <div class="kpi-card" style="--kc:#f43f5e"><div class="kpi-icon"><i class="fa-solid fa-skull-crossbones"></i></div><div><div class="kpi-val" id="intel-kpi-top" style="color:#f43f5e;font-size:13px">—</div><div class="kpi-lbl">Top Threat IP</div></div></div>
+      </div>
+
+      <!-- Geo Heatmap -->
+      <div class="card mb-4">
+        <div class="card-head">
+          <i class="fa-solid fa-earth-americas" style="color:#22d3ee"></i>
+          Global Attack Origins
+          <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+          <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="refreshIntelMap()"><i class="fa-solid fa-rotate"></i></button>
+        </div>
+        <div class="card-body">
+          <div id="attack-map"></div>
+          <div class="map-legend">
+            <div class="map-legend-item"><div class="map-legend-dot" style="background:#f43f5e"></div>Critical</div>
+            <div class="map-legend-item"><div class="map-legend-dot" style="background:#f59e0b"></div>High</div>
+            <div class="map-legend-item"><div class="map-legend-dot" style="background:#a855f7"></div>Medium</div>
+            <div class="map-legend-item"><div class="map-legend-dot" style="background:#334155"></div>Low</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- IOC Feed + Country Breakdown + Top Ports -->
+      <div class="grid-2-1 mb-4">
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-solid fa-list-ul" style="color:#22d3ee"></i>
+            IOC Feed — Top Threat IPs
+            <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="loadIntel()"><i class="fa-solid fa-rotate"></i></button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>IP Address</th>
+                  <th>Score</th>
+                  <th>Intent</th>
+                  <th>Country</th>
+                  <th>Sessions</th>
+                  <th>TTPs</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="intel-ioc-tbody">
+                <tr><td colspan="7" style="text-align:center;color:var(--t4);padding:28px"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:6px"></i>Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-flag" style="color:#f59e0b"></i>Top Source Countries</div>
+            <div class="card-body scroll-list" id="intel-countries" style="min-height:180px">
+              <div class="feed-empty"><i class="fa-solid fa-globe"></i>Loading…</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><i class="fa-solid fa-plug" style="color:#a855f7"></i>Top Targeted Ports</div>
+            <div class="card-body scroll-short" id="intel-ports" style="min-height:120px">
+              <div class="feed-empty"><i class="fa-solid fa-ethernet"></i>Loading…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attack type dist + Campaigns -->
+      <div class="card mb-4">
+        <div class="card-head"><i class="fa-solid fa-chart-bar" style="color:#6366f1"></i>Attack Type Distribution</div>
+        <div class="card-body" id="intel-attack-dist" style="min-height:120px">
+          <div class="feed-empty"><i class="fa-solid fa-chart-simple"></i>Loading…</div>
+        </div>
+      </div>
+    </section>
+
     <section class="section" id="sec-cbee">
       <div class="inno-header" style="--ic:#f59e0b">
         <div class="inno-icon-wrap"><i class="fa-solid fa-brain"></i></div>
@@ -435,7 +524,7 @@
                 <div class="field" style="margin-bottom:0"><label>Duration (sec)</label><input id="cbee-dur" type="number" value="120"></div>
                 <div class="field" style="margin-bottom:0"><label>Login Attempts</label><input id="cbee-logins" type="number" value="25"></div>
               </div>
-              <button class="btn btn-primary" style="width:100%" onclick="scoreSessionCBEE()"><i class="fa-solid fa-bolt"></i> Analyze Bias</button>
+              <button class="btn btn-primary admin-only" style="width:100%" onclick="scoreSessionCBEE()"><i class="fa-solid fa-bolt"></i> Analyze Bias</button>
               <div class="score-result-box" id="cbee-score-out" style="display:none;margin-top:12px"></div>
             </div>
           </div>
@@ -507,7 +596,7 @@
               <input type="range" id="gadcf-soph" min="0" max="2" value="2" class="soph-range">
               <div class="soph-labels"><span>Beginner</span><span>Bot</span><span>Advanced</span></div>
             </div>
-            <button class="gen-btn-big" id="gadcf-gen-btn" onclick="gadcfGenerate()">
+            <button class="gen-btn-big admin-only" id="gadcf-gen-btn" onclick="gadcfGenerate()">
               <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Package
             </button>
             <div id="gadcf-status" style="font-size:11px;font-family:var(--mono);color:var(--t3);margin-top:8px;min-height:16px"></div>
@@ -617,7 +706,7 @@
           <div class="inno-title">Adversarial Self-Hardening Red Team AI</div>
           <div class="inno-sub">A GAN-inspired system that attacks itself — to become impossible to fool. Runs every 6 hours, zero human involvement.</div>
         </div>
-        <button class="run-btn" id="ashrta-run-btn" onclick="ashtaRun()"><i class="fa-solid fa-play"></i> Run Cycle</button>
+        <div id="ashrta-status" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t3)"><i class="fa-solid fa-circle-notch fa-spin"></i> Running…</div>
       </div>
 
       <div class="inno-kpi-row">
@@ -630,31 +719,40 @@
       <div class="ashrta-grid mb-4">
         <!-- Score -->
         <div class="card" style="align-self:start">
-          <div class="card-head"><i class="fa-solid fa-gauge-high" style="color:#f43f5e"></i>Hardening Scorecard</div>
+          <div class="card-head"><i class="fa-solid fa-gauge-high" style="color:#f43f5e"></i>Hardening Score</div>
           <div class="card-body">
-            <div class="score-block">
-              <div style="position:relative;flex-shrink:0">
-                <canvas id="ashrta-gauge" width="160" height="90"></canvas>
-                <div class="ashrta-gauge-center"><div class="ashrta-score-big" id="ashrta-score-val">—</div><div class="ashrta-gauge-sub">/ 100</div></div>
+            <div class="ashrta-gauge-wrap">
+              <canvas id="ashrta-gauge" width="220" height="120"></canvas>
+              <div class="ashrta-gauge-center">
+                <div class="ashrta-score-big" id="ashrta-score-val">—</div>
+                <div class="ashrta-gauge-sub">out of 100</div>
               </div>
-              <div class="meta-grid" id="ashrta-meta"></div>
             </div>
-            <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px">Score Trend</div>
-            <div class="trend-bars-row" id="ashrta-trend"></div>
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t4);font-family:var(--mono)"><span>Oldest</span><span>Latest</span></div>
+            <div id="ashrta-meta"></div>
+            <div class="ashrta-trend-label">Score Trend</div>
+            <div class="ashrta-trend-row" id="ashrta-trend"></div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t4);font-family:var(--mono);margin-top:2px"><span>Oldest</span><span>Latest</span></div>
           </div>
         </div>
 
         <!-- Checks -->
         <div class="card">
-          <div class="card-head"><i class="fa-solid fa-magnifying-glass-chart" style="color:#f43f5e"></i>Detection Checks <span id="ashrta-checks-sum" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span></div>
-          <div class="card-body scroll-list" id="ashrta-checks" style="min-height:280px"><div style="color:var(--t4);text-align:center;padding:32px;font-size:12px">Run a cycle to see results</div></div>
+          <div class="card-head">
+            <i class="fa-solid fa-magnifying-glass-chart" style="color:#f43f5e"></i>
+            Detection Checks
+            <span id="ashrta-checks-sum" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span>
+          </div>
+          <div class="card-body scroll-list" id="ashrta-checks" style="min-height:300px">
+            <div style="color:var(--t4);text-align:center;padding:32px;font-size:12px"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:6px"></i>Loading…</div>
+          </div>
         </div>
 
         <!-- Patches -->
         <div class="card">
           <div class="card-head"><i class="fa-solid fa-wrench" style="color:#10b981"></i>Applied Patches</div>
-          <div class="card-body scroll-list" id="ashrta-patches" style="min-height:280px"><div style="color:var(--t4);text-align:center;padding:32px;font-size:12px">No patches yet</div></div>
+          <div class="card-body scroll-list" id="ashrta-patches" style="min-height:300px">
+            <div style="color:var(--t4);text-align:center;padding:32px;font-size:12px"><i class="fa-solid fa-circle-notch fa-spin" style="margin-right:6px"></i>Loading…</div>
+          </div>
         </div>
       </div>
 
@@ -749,7 +847,7 @@
               <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
                 <label style="font-size:11px;color:var(--t3)">Steps</label>
                 <input id="twin-sim-steps" type="number" value="6" min="1" max="12" style="width:60px;padding:4px 8px">
-                <button class="btn btn-sm btn-primary" onclick="twinSimulate()"><i class="fa-solid fa-play"></i> Simulate</button>
+                <button class="btn btn-sm btn-primary admin-only" onclick="twinSimulate()"><i class="fa-solid fa-play"></i> Simulate</button>
               </div>
             </div>
             <div class="card-body" id="twin-sim-out"><div style="color:var(--t4);text-align:center;padding:24px;font-size:12px">Run a simulation to forecast this attacker's likely path.</div></div>
@@ -808,7 +906,7 @@
               <div id="soc-chat-log" style="display:flex;flex-direction:column;gap:8px;max-height:240px;overflow:auto;margin-bottom:10px"></div>
               <div style="display:flex;gap:8px">
                 <input id="soc-chat-input" type="text" placeholder="e.g. what is the top threat? what should I block?" style="flex:1;padding:8px 12px" onkeydown="if(event.key==='Enter')socAsk()">
-                <button class="btn btn-sm btn-primary" onclick="socAsk()"><i class="fa-solid fa-paper-plane"></i> Ask</button>
+                <button class="btn btn-sm btn-primary admin-only" onclick="socAsk()"><i class="fa-solid fa-paper-plane"></i> Ask</button>
               </div>
             </div>
           </div>
@@ -819,6 +917,23 @@
   </div><!-- /page-content -->
 </div><!-- /main -->
 </div><!-- /app -->
+
+<!-- HONEYPOT IP DETAIL MODAL -->
+<div class="modal-overlay hidden" id="hp-modal" onclick="if(event.target===this)closeHpModal()">
+  <div class="modal-box" style="max-width:740px;max-height:88vh;overflow-y:auto">
+    <div class="modal-head">
+      <i class="fa-solid fa-terminal" style="color:#f59e0b;font-size:18px"></i>
+      <div>
+        <div class="modal-title" id="hp-modal-ip">—</div>
+        <div class="modal-sub">Honeypot Attack Detail</div>
+      </div>
+      <button class="modal-close" onclick="closeHpModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="hp-modal-body">
+      <div style="text-align:center;color:var(--t4);padding:32px">Loading…</div>
+    </div>
+  </div>
+</div>
 
 <!-- ATTACKER PROFILE MODAL -->
 <div class="modal-overlay hidden" id="profile-modal" onclick="handleModalBg(event)">
@@ -848,9 +963,74 @@
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-danger" onclick="blockIP()"><i class="fa-solid fa-ban"></i> Block IP</button>
+      <button class="btn btn-danger admin-only" onclick="blockIP()"><i class="fa-solid fa-ban"></i> Block IP</button>
       <button class="btn btn-secondary" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Close</button>
     </div>
+  </div>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay" style="
+  position:fixed;inset:0;background:rgba(0,0,0,0.92);backdrop-filter:blur(10px);
+  display:flex;align-items:center;justify-content:center;z-index:9999;
+">
+  <div style="
+    background:var(--surface,#12141a);border:1px solid var(--border2,rgba(255,255,255,0.1));
+    border-radius:16px;width:380px;max-width:94vw;padding:36px 32px;
+    box-shadow:0 32px 100px rgba(0,0,0,0.8),inset 0 1px 0 rgba(255,255,255,0.05);
+    animation:modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  ">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="width:52px;height:52px;background:linear-gradient(135deg,#6366f1,#22d3ee);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fff;margin:0 auto 14px">N</div>
+      <div style="font-size:18px;font-weight:700;color:var(--t1,#f1f5f9)">NeuroTrap CADN</div>
+      <div style="font-size:11px;color:var(--t3,#64748b);margin-top:4px">Security Operations Center</div>
+    </div>
+
+    <div id="login-step-password">
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:600;color:var(--t3,#64748b);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px">Username</label>
+        <input id="login-user" type="text" autocomplete="username" value="admin"
+          style="width:100%;box-sizing:border-box;background:var(--surface2,#1a1d27);border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:8px;padding:10px 12px;font-size:13px;color:var(--t1,#f1f5f9);outline:none"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:11px;font-weight:600;color:var(--t3,#64748b);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:6px">Password</label>
+        <input id="login-pass" type="password" autocomplete="current-password"
+          style="width:100%;box-sizing:border-box;background:var(--surface2,#1a1d27);border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:8px;padding:10px 12px;font-size:13px;color:var(--t1,#f1f5f9);outline:none"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button onclick="doLogin()" id="login-btn" style="
+        width:100%;padding:11px;background:linear-gradient(135deg,#6366f1,#4f46e5);
+        border:none;border-radius:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;
+        transition:opacity 0.15s;
+      ">Sign In</button>
+    </div>
+
+    <div id="login-step-otp" style="display:none">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:28px;margin-bottom:8px">🔐</div>
+        <div style="font-size:14px;font-weight:600;color:var(--t1,#f1f5f9)">Two-Factor Authentication</div>
+        <div style="font-size:11px;color:var(--t3,#64748b);margin-top:4px">Enter the 6-digit code from your authenticator app</div>
+      </div>
+      <div style="margin-bottom:20px">
+        <input id="login-otp" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+          placeholder="000000" autocomplete="one-time-code"
+          style="width:100%;box-sizing:border-box;background:var(--surface2,#1a1d27);border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:8px;padding:12px;font-size:22px;font-weight:700;color:var(--t1,#f1f5f9);text-align:center;letter-spacing:8px;outline:none"
+          oninput="this.value=this.value.replace(/\D/g,'')"
+          onkeydown="if(event.key==='Enter')doLoginOTP()">
+      </div>
+      <button onclick="doLoginOTP()" id="otp-btn" style="
+        width:100%;padding:11px;background:linear-gradient(135deg,#6366f1,#4f46e5);
+        border:none;border-radius:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;
+      ">Verify Code</button>
+      <button onclick="resetLoginStep()" style="
+        width:100%;margin-top:8px;padding:9px;background:transparent;
+        border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:8px;
+        font-size:12px;color:var(--t3,#64748b);cursor:pointer;
+      ">← Back</button>
+    </div>
+
+    <div id="login-error" style="display:none;margin-top:14px;background:rgba(244,63,94,0.12);border:1px solid rgba(244,63,94,0.3);border-radius:8px;padding:9px 12px;font-size:12px;color:#fda4af;text-align:center"></div>
   </div>
 </div>
 
@@ -858,6 +1038,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="/static/js/app.js"></script>
+<script src="/static/js/intel.js"></script>
+<script src="/static/js/ashrta.js"></script>
 <script src="/static/js/twin.js"></script>
 <script src="/static/js/soc.js"></script>
 </body>

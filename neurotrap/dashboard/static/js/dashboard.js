@@ -29,12 +29,12 @@ const ATTACK_ICONS = {
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initClock();
-  initMap();
   initCharts();
   initWebSocket();
   initControls();
   fetchAll();
   setInterval(fetchAll, 15000);
+  loadDashTopCountries();
   // Demo: inject a few synthetic events so the feed isn't empty on first load
   setTimeout(injectDemoEvents, 1200);
 });

@@ -24,3 +24,7 @@ env/
 *.db
 *.db-wal
 *.db-shm
+
+# External honeypot sources (cloned separately)
+dionaea-src/
+galah-src/
