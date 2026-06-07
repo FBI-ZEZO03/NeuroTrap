@@ -203,7 +203,8 @@ function initApp() {
   initCharts();
   initWebSocket();
   fetchDashboard();
-  setInterval(fetchDashboard, 15000);
+  loadDashTopCountries();
+  setInterval(() => { fetchDashboard(); loadDashTopCountries(); }, 15000);
   setTimeout(injectDemo, 1000);
 }
 
