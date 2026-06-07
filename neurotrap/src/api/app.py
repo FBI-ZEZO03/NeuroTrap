@@ -1054,13 +1054,59 @@ def handle_subscribe(data=None):
 
 
 def broadcast_event(event: dict):
-    """Called by detection pipeline to push events to dashboard in real-time."""
     socketio.emit("new_event", event, namespace="/")
 
 
 def broadcast_profile_update(profile_dict: dict):
-    """Called by behavior engine to push attacker profile updates."""
     socketio.emit("profile_update", profile_dict, namespace="/")
+
+
+def _live_feed_poller():
+    """Background thread: polls alert_events and attacker_profiles for new
+    documents every 2 s and pushes them to connected dashboard clients."""
+    import time as _time
+    last_event_ts = _time.time()
+    last_profile_ts = _time.time()
+
+    while True:
+        _time.sleep(2)
+        try:
+            db = get_db()
+
+            # --- new alert events ---
+            new_events = list(
+                db["alert_events"].find(
+                    {"timestamp": {"$gt": last_event_ts}},
+                    {"_id": 0},
+                ).sort("timestamp", 1).limit(50)
+            )
+            for ev in new_events:
+                broadcast_event(ev)
+                if ev.get("timestamp", 0) > last_event_ts:
+                    last_event_ts = ev["timestamp"]
+
+            # --- new / updated attacker profiles ---
+            new_profiles = list(
+                db["attacker_profiles"].find(
+                    {"last_seen": {"$gt": last_profile_ts}},
+                    {"_id": 0},
+                ).sort("last_seen", 1).limit(20)
+            )
+            for prof in new_profiles:
+                broadcast_profile_update(prof)
+                if prof.get("last_seen", 0) > last_profile_ts:
+                    last_profile_ts = prof["last_seen"]
+
+        except Exception as exc:
+            logger.debug("live_feed_poller error: %s", exc)
+
+
+# Start the poller once (guarded so it doesn't double-start under reloader)
+import os as _os
+if not _os.environ.get("WERKZEUG_RUN_MAIN"):
+    import threading as _threading
+    _poller = _threading.Thread(target=_live_feed_poller, daemon=True, name="live-feed-poller")
+    _poller.start()
 
 
 if __name__ == "__main__":
