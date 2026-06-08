@@ -6,11 +6,12 @@ from __future__ import annotations
 import os
 import time
 import logging
+import threading
 import urllib.request
 import json as _json
 from functools import wraps
 
-from flask import Flask, jsonify, request, render_template, abort, redirect
+from flask import Flask, jsonify, request, render_template, abort, redirect, make_response
 from flask_socketio import SocketIO, emit
 
 try:
@@ -234,7 +235,10 @@ def mfa_status():
 
 @app.route("/")
 def dashboard():
-    return render_template("index.html")
+    resp = make_response(render_template("index.html"))
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 # Legacy standalone routes now redirect into the single-page app (in-page nav).
 @app.route("/cbee")
@@ -336,6 +340,18 @@ def get_attackers():
         if not include_sessions:
             p.pop("sessions", None)
         profiles.append(p)
+
+    # Enrich any profiles missing lat/lon in a background thread so the
+    # response is never delayed waiting for ip-api.com.
+    no_geo = [p["src_ip"] for p in profiles if p.get("latitude") is None]
+    if no_geo:
+        def _bg_enrich(db_ref, ips):
+            try:
+                _resolve_geo(db_ref, ips)
+            except Exception:
+                pass
+        threading.Thread(target=_bg_enrich, args=(db, no_geo), daemon=True).start()
+
     return jsonify({"attackers": profiles})
 
 
@@ -850,37 +866,46 @@ def soc_chat():
 
 # ── Threat Intelligence API ───────────────────────────────────────────────────
 
-def _resolve_countries(db, ips: list[str]) -> dict[str, str]:
-    """Batch-resolve countries for IPs that have no country set yet.
+def _resolve_geo(db, ips: list[str]) -> dict[str, dict]:
+    """Batch-resolve country + lat/lon for IPs that have no geo data yet.
     Uses ip-api.com free batch endpoint (no key, max 100 IPs).
     Results are cached back into attacker_profiles immediately.
     """
     if not ips:
         return {}
-    resolved: dict[str, str] = {}
+    resolved: dict[str, dict] = {}
     try:
-        payload = _json.dumps([{"query": ip, "fields": "query,country"} for ip in ips[:100]]).encode()
+        payload = _json.dumps([{"query": ip, "fields": "query,country,lat,lon"} for ip in ips[:100]]).encode()
         req = urllib.request.Request(
-            "http://ip-api.com/batch?fields=query,country",
+            "http://ip-api.com/batch?fields=query,country,lat,lon",
             data=payload,
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             results = _json.loads(resp.read())
         for r in results:
-            country = (r.get("country") or "Unknown").replace("The Netherlands", "Netherlands")
             ip = r.get("query", "")
-            if ip:
-                resolved[ip] = country
-                try:
-                    db["attacker_profiles"].update_one(
-                        {"src_ip": ip}, {"$set": {"country": country}}
-                    )
-                except Exception:
-                    pass
+            if not ip:
+                continue
+            country = (r.get("country") or "Unknown").replace("The Netherlands", "Netherlands")
+            lat = r.get("lat") or None
+            lon = r.get("lon") or None
+            resolved[ip] = {"country": country, "latitude": lat, "longitude": lon}
+            try:
+                db["attacker_profiles"].update_one(
+                    {"src_ip": ip},
+                    {"$set": {"country": country, "latitude": lat, "longitude": lon}},
+                )
+            except Exception:
+                pass
     except Exception as exc:
         logger.warning("GeoIP batch lookup failed: %s", exc)
     return resolved
+
+def _resolve_countries(db, ips: list[str]) -> dict[str, str]:
+    """Wrapper kept for backwards compat — returns country strings only."""
+    geo = _resolve_geo(db, ips)
+    return {ip: v["country"] for ip, v in geo.items()}
 
 
 @app.route("/api/intel", methods=["GET"])

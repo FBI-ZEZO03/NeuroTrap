@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>NeuroTrap CADN — Security Operations Center</title>
-<link rel="stylesheet" href="/static/css/main.css?v=2"/>
+<link rel="stylesheet" href="/static/css/main.css?v=20"/>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com"/>
 <link rel="preconnect" href="https://unpkg.com"/>
 <link rel="preconnect" href="https://cdn.jsdelivr.net"/>
@@ -79,14 +79,6 @@
     <div class="nav-item" data-section="cbee" onclick="navigate('cbee',this)">
       <i class="fa-solid fa-brain nav-icon"></i>
       CBEE
-    </div>
-    <div class="nav-item" data-section="gadcf" onclick="navigate('gadcf',this)">
-      <i class="fa-solid fa-wand-magic-sparkles nav-icon"></i>
-      GADCF
-    </div>
-    <div class="nav-item" data-section="fhim" onclick="navigate('fhim',this)">
-      <i class="fa-solid fa-network-wired nav-icon"></i>
-      FHIM
     </div>
     <div class="nav-item" data-section="twin" onclick="navigate('twin',this)">
       <i class="fa-solid fa-clone nav-icon"></i>
@@ -410,10 +402,10 @@
       </div>
 
       <!-- KPIs -->
-      <div class="inno-kpi-row">
+      <div class="inno-kpi-row" style="grid-template-columns:repeat(3,1fr)">
         <div class="kpi-card" style="--kc:#22d3ee"><div class="kpi-icon"><i class="fa-solid fa-crosshairs"></i></div><div><div class="kpi-val" id="intel-kpi-iocs">—</div><div class="kpi-lbl">Total IOCs</div></div></div>
         <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-earth-americas"></i></div><div><div class="kpi-val" id="intel-kpi-countries" style="color:#f59e0b">—</div><div class="kpi-lbl">Countries Seen</div></div></div>
-        <div class="kpi-card" style="--kc:#f43f5e"><div class="kpi-icon"><i class="fa-solid fa-skull-crossbones"></i></div><div><div class="kpi-val" id="intel-kpi-top" style="color:#f43f5e;font-size:13px">—</div><div class="kpi-lbl">Top Threat IP</div></div></div>
+        <div class="kpi-card" style="--kc:#f43f5e"><div class="kpi-icon"><i class="fa-solid fa-skull-crossbones"></i></div><div><div class="kpi-val" id="intel-kpi-top" style="color:#f43f5e">—</div><div class="kpi-lbl">Top Threat IP</div></div></div>
       </div>
 
       <!-- IOC Feed + Country Breakdown + Top Ports -->
@@ -480,7 +472,7 @@
       </div>
 
       <!-- KPIs -->
-      <div class="inno-kpi-row" style="grid-template-columns:repeat(4,1fr)">
+      <div class="inno-kpi-row" style="grid-template-columns:repeat(4,minmax(0,1fr))">
         <div class="kpi-card" style="--kc:#f43f5e">
           <div class="kpi-icon"><i class="fa-solid fa-crosshairs"></i></div>
           <div><div class="kpi-val" id="mitre-kpi-techs">—</div><div class="kpi-lbl">Techniques</div></div>
@@ -529,7 +521,7 @@
       </div>
 
       <!-- Bottom: Top Techniques + Detail Panel -->
-      <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:stretch;flex:1">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
 
         <!-- Top Techniques table -->
         <div class="card" style="display:flex;flex-direction:column">
@@ -537,27 +529,29 @@
             <i class="fa-solid fa-ranking-star" style="color:#f59e0b"></i>
             Top Observed Techniques
           </div>
-          <div style="padding:0 16px 4px;display:flex;flex-direction:column;flex:1">
-            <div style="display:grid;grid-template-columns:46px 1fr 100px 80px 36px;gap:0;padding:6px 0;border-bottom:2px solid var(--border-dim)">
-              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">ID</span>
-              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Technique</span>
-              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Tactic</span>
-              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Coverage</span>
-              <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;text-align:right">Hits</span>
-            </div>
-            <div id="mitre-technique-list" style="flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border-dim) transparent">
-              <div class="feed-empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading…</div>
+          <div style="overflow-x:auto">
+            <div style="min-width:520px">
+              <div style="display:grid;grid-template-columns:52px 1fr 110px 90px 44px;gap:0;padding:6px 16px;border-bottom:1px solid var(--border-dim)">
+                <span style="font-size:9.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">ID</span>
+                <span style="font-size:9.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Technique</span>
+                <span style="font-size:9.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Tactic</span>
+                <span style="font-size:9.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Coverage</span>
+                <span style="font-size:9.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;text-align:right">Hits</span>
+              </div>
+              <div id="mitre-technique-list" style="max-height:340px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border-dim) transparent;padding:0 16px">
+                <div class="feed-empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Loading…</div>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Technique Detail Panel -->
-        <div class="card" style="align-self:start;position:sticky;top:16px">
+        <div class="card">
           <div class="card-head">
             <i class="fa-solid fa-file-shield" style="color:#6366f1"></i>
             Technique Detail
           </div>
-          <div id="mitre-detail-panel" style="padding:16px">
+          <div id="mitre-detail-panel" style="padding:16px;max-height:400px;overflow-y:auto">
             <div class="feed-empty" style="flex-direction:column;gap:10px;padding:32px 0">
               <i class="fa-solid fa-hand-pointer" style="font-size:26px;color:var(--border-dim)"></i>
               <span style="font-size:12px;color:var(--text-muted)">Click a technique to inspect</span>
@@ -598,40 +592,51 @@
       </div>
 
       <!-- Full-width live map -->
-      <div class="card mb-4" style="overflow:hidden">
+      <div class="card mb-4" style="overflow:hidden" id="geo-map-card">
         <div class="card-head">
           <i class="fa-solid fa-satellite-dish" style="color:#22d3ee"></i>
           Global Attack Tracker
           <div class="live-badge"><div class="live-dot"></div>LIVE</div>
           <span id="geo-last-updated" style="margin-left:4px;font-size:11px;color:var(--text-muted);font-weight:400"></span>
-          <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="reloadGeoMap()">
-            <i class="fa-solid fa-rotate"></i> Refresh
-          </button>
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <span id="geo-apm-badge" style="font-size:10px;font-family:var(--font-mono);color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:4px;padding:2px 8px;display:none">
+              <i class="fa-solid fa-arrow-trend-up" style="font-size:8px;margin-right:3px"></i><span id="geo-apm-val">0</span>/min
+            </span>
+            <button class="btn btn-sm btn-secondary" onclick="reloadGeoMap()">
+              <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+            <button class="btn btn-sm btn-secondary" onclick="toggleGeoFullscreen()" id="geo-fullscreen-btn" title="Fullscreen map">
+              <i class="fa-solid fa-expand"></i>
+            </button>
+          </div>
         </div>
-        <div style="position:relative">
+        <div style="position:relative" id="geo-map-wrap">
           <div class="geo-scan-line"></div>
-          <div id="geomap-map" style="height:680px;width:100%"></div>
+          <div id="geomap-map" style="height:clamp(480px,calc(100vh - 300px),820px);width:100%"></div>
           <!-- Legend overlay -->
           <div class="geo-legend-overlay">
-            <div style="font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Threat Level</div>
-            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#f43f5e;box-shadow:0 0 6px #f43f5e88"></div>Critical (90+)</div>
-            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#f59e0b;box-shadow:0 0 6px #f59e0b88"></div>High (70–89)</div>
-            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#a855f7;box-shadow:0 0 6px #a855f788"></div>Medium (40–69)</div>
-            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#22d3ee;box-shadow:0 0 6px #22d3ee88"></div>Low (&lt;40)</div>
-            <div style="border-top:1px solid rgba(255,255,255,0.07);margin-top:4px;padding-top:6px">
-              <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#10b981;box-shadow:0 0 8px #10b98188"></div>NeuroTrap Server</div>
+            <div style="font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Threat Level</div>
+            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#f43f5e;box-shadow:0 0 8px #f43f5e99"></div>Critical (90+)</div>
+            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#f59e0b;box-shadow:0 0 8px #f59e0b99"></div>High (70–89)</div>
+            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#a855f7;box-shadow:0 0 8px #a855f799"></div>Medium (40–69)</div>
+            <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#22d3ee;box-shadow:0 0 8px #22d3ee99"></div>Low (&lt;40)</div>
+            <div style="border-top:1px solid rgba(255,255,255,0.07);margin-top:6px;padding-top:7px">
+              <div class="geo-legend-row"><div class="geo-legend-dot" style="background:#10b981;box-shadow:0 0 10px #10b98199"></div>NeuroTrap Server</div>
             </div>
           </div>
           <!-- Bottom stats strip -->
           <div class="geo-stats-strip">
-            <i class="fa-solid fa-circle" style="color:#10b981;font-size:7px;margin-right:4px"></i>
-            Server: Oberasbach, Bavaria DE
-            <span style="margin:0 10px;opacity:0.25">|</span>
-            <span id="geo-stat-total">—</span>&nbsp;attackers tracked
-            <span style="margin:0 10px;opacity:0.25">|</span>
+            <i class="fa-solid fa-circle" style="color:#10b981;font-size:7px;margin-right:5px"></i>
+            <span style="color:var(--text-primary,#f8fafc);font-weight:600">Oberasbach, DE</span>
+            <span style="margin:0 10px;opacity:0.2">|</span>
+            <i class="fa-solid fa-crosshairs" style="color:#22d3ee;margin-right:4px;font-size:9px"></i>
+            <span id="geo-stat-total">—</span>&nbsp;attackers
+            <span style="margin:0 10px;opacity:0.2">|</span>
+            <i class="fa-solid fa-earth-americas" style="color:#f59e0b;margin-right:4px;font-size:9px"></i>
             <span id="geo-stat-countries">—</span>&nbsp;countries
-            <span style="margin:0 10px;opacity:0.25">|</span>
-            Last update: <span id="geo-stat-time" style="color:var(--text-primary);margin-left:4px">—</span>
+            <span style="margin:0 10px;opacity:0.2">|</span>
+            <i class="fa-regular fa-clock" style="color:#a855f7;margin-right:4px;font-size:9px"></i>
+            <span id="geo-stat-time" style="color:var(--text-primary,#f8fafc)">—</span>
           </div>
         </div>
       </div>
@@ -779,7 +784,6 @@
         <div class="inno-icon-wrap"><i class="fa-solid fa-brain"></i></div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span class="inno-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;border-color:rgba(245,158,11,0.4)">IDEA 01</span>
             <span style="font-size:11px;font-weight:600;color:#f43f5e;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Hard</span>
           </div>
           <div class="inno-title">Cognitive Bias Exploitation Engine</div>
@@ -841,152 +845,6 @@
       </div>
     </section>
 
-    <!-- ═══════════════════════════
-         GADCF
-    ═══════════════════════════ -->
-    <section class="section" id="sec-gadcf">
-      <div class="inno-header" style="--ic:#6366f1">
-        <div class="inno-icon-wrap"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span class="inno-badge" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.4)">IDEA 02</span>
-            <span style="font-size:11px;font-weight:600;color:#f59e0b;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Medium</span>
-          </div>
-          <div class="inno-title">Generative AI Deception Content Factory</div>
-          <div class="inno-sub">LLM-generated fake assets so contextually coherent, attackers cannot tell the difference. Ollama (Llama 3.1 / Mistral) + RAG + ChromaDB.</div>
-        </div>
-      </div>
-
-      <div class="inno-kpi-row">
-        <div class="kpi-card" style="--kc:#6366f1"><div class="kpi-icon"><i class="fa-solid fa-file-code"></i></div><div><div class="kpi-val" id="gadcf-kpi-total">—</div><div class="kpi-lbl">Assets Generated</div></div></div>
-        <div class="kpi-card" style="--kc:#22d3ee"><div class="kpi-icon"><i class="fa-solid fa-microchip"></i></div><div><div class="kpi-val" id="gadcf-kpi-llm" style="color:#22d3ee">—</div><div class="kpi-lbl">LLM Backend</div></div></div>
-        <div class="kpi-card" style="--kc:#10b981"><div class="kpi-icon"><i class="fa-solid fa-industry"></i></div><div><div class="kpi-val" style="color:#10b981">6</div><div class="kpi-lbl">Industries</div></div></div>
-        <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-layer-group"></i></div><div><div class="kpi-val" style="color:#f59e0b">5</div><div class="kpi-lbl">Asset Types</div></div></div>
-      </div>
-
-      <div class="gadcf-grid mb-4">
-        <!-- Generator -->
-        <div class="card" style="align-self:start">
-          <div class="card-head"><i class="fa-solid fa-sliders" style="color:#6366f1"></i>Generator Config</div>
-          <div class="card-body">
-            <div class="field"><label>Industry</label>
-              <div class="opt-grid" id="gadcf-ind-opts">
-                <button class="opt-btn active" data-v="financial_services"><i class="fa-solid fa-building-columns"></i> Financial</button>
-                <button class="opt-btn" data-v="saas_startup"><i class="fa-solid fa-rocket"></i> SaaS</button>
-                <button class="opt-btn" data-v="healthcare"><i class="fa-solid fa-hospital"></i> Health</button>
-                <button class="opt-btn" data-v="e_commerce"><i class="fa-solid fa-cart-shopping"></i> eCommerce</button>
-                <button class="opt-btn" data-v="government"><i class="fa-solid fa-landmark"></i> Gov</button>
-                <button class="opt-btn" data-v="energy"><i class="fa-solid fa-bolt"></i> Energy</button>
-              </div>
-            </div>
-            <div class="field"><label>Intent</label>
-              <div class="opt-grid" id="gadcf-int-opts">
-                <button class="opt-btn active" data-v="credential_harvesting"><i class="fa-solid fa-key"></i> Cred Harvest</button>
-                <button class="opt-btn" data-v="malware_deployment"><i class="fa-solid fa-virus"></i> Malware</button>
-                <button class="opt-btn" data-v="lateral_movement"><i class="fa-solid fa-arrows-left-right"></i> Lateral</button>
-                <button class="opt-btn" data-v="reconnaissance"><i class="fa-solid fa-magnifying-glass"></i> Recon</button>
-                <button class="opt-btn" data-v="cryptomining"><i class="fa-solid fa-coins"></i> Mining</button>
-              </div>
-            </div>
-            <div class="field"><label>Sophistication</label>
-              <input type="range" id="gadcf-soph" min="0" max="2" value="2" class="soph-range">
-              <div class="soph-labels"><span>Beginner</span><span>Bot</span><span>Advanced</span></div>
-            </div>
-            <button class="gen-btn-big admin-only" id="gadcf-gen-btn" onclick="gadcfGenerate()">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Package
-            </button>
-            <div id="gadcf-status" style="font-size:11px;font-family:var(--mono);color:var(--t3);margin-top:8px;min-height:16px"></div>
-          </div>
-        </div>
-
-        <!-- Assets -->
-        <div class="card">
-          <div class="card-head">
-            <i class="fa-solid fa-folder-open" style="color:#6366f1"></i>Assets
-            <span id="gadcf-count" style="margin-left:auto;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px"></span>
-          </div>
-          <div class="card-body scroll-list" id="gadcf-assets" style="min-height:300px">
-            <div class="feed-empty"><i class="fa-solid fa-folder-open" style="font-size:24px;color:rgba(99,102,241,0.2)"></i>Generate a package</div>
-          </div>
-        </div>
-
-        <!-- Preview -->
-        <div class="card" style="display:flex;flex-direction:column">
-          <div class="card-head"><i class="fa-solid fa-eye" style="color:#6366f1"></i>Preview <span id="gadcf-prev-name" style="color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;margin-left:4px;font-family:var(--mono)"></span></div>
-          <div class="card-body" style="flex:1;display:flex;flex-direction:column">
-            <div class="preview-box" id="gadcf-preview"><div class="preview-empty"><i class="fa-solid fa-file-code" style="font-size:28px;color:rgba(99,102,241,0.2)"></i>Click an asset to preview</div></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ═══════════════════════════
-         FHIM
-    ═══════════════════════════ -->
-    <section class="section" id="sec-fhim">
-      <div class="inno-header" style="--ic:#10b981">
-        <div class="inno-icon-wrap"><i class="fa-solid fa-network-wired"></i></div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span class="inno-badge" style="background:rgba(16,185,129,0.15);color:#6ee7b7;border-color:rgba(16,185,129,0.4)">IDEA 03</span>
-            <span style="font-size:11px;font-weight:600;color:#f43f5e;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> Hard</span>
-          </div>
-          <div class="inno-title">Federated Honeypot Intelligence Mesh</div>
-          <div class="inno-sub">Collective defense across organizations — without ever sharing raw data. FedAvg + Gaussian Differential Privacy (ε=1.0, δ=1e-5).</div>
-        </div>
-      </div>
-
-      <div class="dp-badge mb-4">
-        <i class="fa-solid fa-shield-halved"></i>
-        <strong style="color:#10b981">Zero Raw Data Exposure</strong> — Only differentially-private gradient deltas leave each node. No IPs, sessions, or logs ever transmitted across organizations.
-        <span style="margin-left:auto;color:var(--t3);font-size:10px;font-family:var(--mono);flex-shrink:0">Flower (flwr) · Opacus DP · gRPC + mTLS</span>
-      </div>
-
-      <div class="inno-kpi-row">
-        <div class="kpi-card" style="--kc:#10b981"><div class="kpi-icon"><i class="fa-solid fa-circle-nodes"></i></div><div><div class="kpi-val" id="fhim-kpi-nodes">—</div><div class="kpi-lbl">Active Nodes</div></div></div>
-        <div class="kpi-card" style="--kc:#22d3ee"><div class="kpi-icon"><i class="fa-solid fa-brain"></i></div><div><div class="kpi-val" id="fhim-kpi-f1" style="color:#22d3ee">—</div><div class="kpi-lbl">Global F1</div></div></div>
-        <div class="kpi-card" style="--kc:#a855f7"><div class="kpi-icon"><i class="fa-solid fa-database"></i></div><div><div class="kpi-val" id="fhim-kpi-samples" style="color:#a855f7">—</div><div class="kpi-lbl">Samples</div></div></div>
-        <div class="kpi-card" style="--kc:#f59e0b"><div class="kpi-icon"><i class="fa-solid fa-lock"></i></div><div><div class="kpi-val" style="color:#f59e0b">ε=1.0</div><div class="kpi-lbl">DP Epsilon</div></div></div>
-      </div>
-
-      <div class="grid-2-1 mb-4">
-        <div class="card">
-          <div class="card-head"><i class="fa-solid fa-circle-nodes" style="color:#10b981"></i>Network Nodes <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="loadFHIM()"><i class="fa-solid fa-rotate"></i></button></div>
-          <div class="card-body"><div class="node-grid" id="fhim-nodes"><div style="color:var(--t4);font-size:12px">Loading…</div></div></div>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:16px">
-          <div class="card">
-            <div class="card-head"><i class="fa-solid fa-diagram-project" style="color:#10b981"></i>FedAvg Protocol</div>
-            <div class="card-body" style="display:flex;flex-direction:column;gap:0">
-              <div class="fedavg-step"><div class="step-circle" style="background:linear-gradient(135deg,#10b981,#22d3ee)">1</div><div><div style="font-weight:600;font-size:12px;margin-bottom:3px">Local Training</div><div style="font-size:11px;color:var(--t3)">Each node trains on its own honeypot sessions. Raw data stays local.</div></div></div>
-              <div class="step-connector"><i class="fa-solid fa-arrow-down"></i></div>
-              <div class="fedavg-step"><div class="step-circle" style="background:linear-gradient(135deg,#f59e0b,#f43f5e)">2</div><div><div style="font-weight:600;font-size:12px;margin-bottom:3px">DP Noise (ε=1.0)</div><div style="font-size:11px;color:var(--t3)">Gaussian noise added to gradients. Individual data becomes unrecoverable.</div></div></div>
-              <div class="step-connector"><i class="fa-solid fa-arrow-down"></i></div>
-              <div class="fedavg-step"><div class="step-circle" style="background:linear-gradient(135deg,#a855f7,#22d3ee)">3</div><div><div style="font-weight:600;font-size:12px;margin-bottom:3px">FedAvg Aggregation</div><div style="font-size:11px;color:var(--t3)">Server averages all deltas. No individual node's data recoverable.</div></div></div>
-              <div class="step-connector"><i class="fa-solid fa-arrow-down"></i></div>
-              <div class="fedavg-step"><div class="step-circle" style="background:linear-gradient(135deg,#10b981,#a855f7)">4</div><div><div style="font-weight:600;font-size:12px;margin-bottom:3px">Global Model Update</div><div style="font-size:11px;color:var(--t3)">Improved weights distributed to all nodes. Everyone benefits.</div></div></div>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-head"><i class="fa-solid fa-history" style="color:#10b981"></i>Aggregation Rounds</div>
-            <div class="card-body scroll-short" id="fhim-rounds"><div style="color:var(--t4);font-size:11px">No rounds yet</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-head"><i class="fa-solid fa-microscope" style="color:#10b981"></i>Academic Basis & Stack</div>
-        <div class="card-body">
-          <div class="research-grid">
-            <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-graduation-cap"></i> IEEE S&P Reference</div><div class="research-card-body">McMahan et al., "Communication-Efficient Learning of Deep Networks from Decentralized Data" — the FedAvg paper FHIM implements.</div></div>
-            <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-shield-halved"></i> Differential Privacy</div><div class="research-card-body">Gaussian mechanism (ε=1.0, δ=1e-5) via Opacus. (ε,δ)-DP guarantees: any node's data contribution is indistinguishable from noise.</div></div>
-            <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-code-branch"></i> Tech Stack</div><div class="research-card-body">Flower (flwr) · PyTorch · Opacus · gRPC transport · mTLS auth · Docker overlay · NATS message queue.</div></div>
-            <div class="research-card"><div class="research-card-title"><i class="fa-solid fa-chart-line"></i> Expected F1 Gain</div><div class="research-card-body">8–15% F1 improvement over single-node training with ≥4 diverse nodes. Target >90% global F1 within 20 rounds.</div></div>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- ════════════ INNOVATION 05 · ATTACKER DIGITAL TWIN ════════════ -->
     <section class="section" id="sec-twin">
@@ -994,7 +852,6 @@
         <div class="inno-icon-wrap"><i class="fa-solid fa-clone"></i></div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span class="inno-badge" style="background:rgba(56,189,248,0.15);color:#7dd3fc;border-color:rgba(56,189,248,0.4)">IDEA 05</span>
             <span style="font-size:11px;font-weight:600;color:#f59e0b;display:flex;align-items:center;gap:3px"><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i> High</span>
           </div>
           <div class="inno-title">Attacker Digital Twin</div>
@@ -1065,7 +922,6 @@
         <div class="inno-icon-wrap"><i class="fa-solid fa-user-shield"></i></div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span class="inno-badge" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border-color:rgba(168,85,247,0.4)">IDEA 06</span>
             <span id="soc-llm-badge" style="font-size:11px;font-weight:600;color:#f59e0b;display:flex;align-items:center;gap:4px"><i class="fa-solid fa-circle" style="font-size:7px"></i> Heuristic mode</span>
           </div>
           <div class="inno-title">AI SOC Analyst</div>
@@ -1240,10 +1096,10 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" defer></script>
-<script src="/static/js/app.js?v=6" defer></script>
-<script src="/static/js/intel.js?v=2" defer></script>
-<script src="/static/js/behavior.js?v=6" defer></script>
-<script src="/static/js/twin.js?v=2" defer></script>
-<script src="/static/js/soc.js?v=2" defer></script>
+<script src="/static/js/app.js?v=20" defer></script>
+<script src="/static/js/intel.js?v=20" defer></script>
+<script src="/static/js/behavior.js?v=21" defer></script>
+<script src="/static/js/twin.js?v=20" defer></script>
+<script src="/static/js/soc.js?v=20" defer></script>
 </body>
 </html>

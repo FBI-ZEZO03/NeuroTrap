@@ -266,47 +266,55 @@ function renderMitreHeatmap(attackers) {
   // ── Navigator heatmap ────────────────────────────────────────────────────────
   const maxCount = Math.max(...Object.values(tacticMap).flatMap(t=>Object.values(t).map(v=>v.count)), 1);
 
-  const cols = MITRE_TACTICS.map(tac => {
+  const activeTacList   = MITRE_TACTICS.filter(t => tacticMap[t.id] && Object.keys(tacticMap[t.id]).length > 0);
+  const inactiveTacList = MITRE_TACTICS.filter(t => !tacticMap[t.id] || Object.keys(tacticMap[t.id]).length === 0);
+
+  const cols = activeTacList.map(tac => {
     const techs    = tacticMap[tac.id] || {};
     const techList = Object.entries(techs).sort((a,b)=>b[1].count-a[1].count);
     const tacHits  = Object.values(techs).reduce((s,v)=>s+v.count,0);
-    const hasHits  = techList.length > 0;
-
-    const headerBg = hasHits ? `${tac.color}1a` : 'rgba(255,255,255,0.02)';
-    const headerBdr= hasHits ? `${tac.color}55` : 'var(--border-dim)';
 
     const cells = techList.map(([tid, tv]) => {
-      const norm  = Math.max(0.12, tv.count / maxCount);
-      const alpha = Math.round(norm * 255).toString(16).padStart(2,'0');
+      const norm  = Math.max(0.15, tv.count / maxCount);
+      const alpha = Math.round(norm * 220).toString(16).padStart(2,'0');
       const bg    = `${tac.color}${alpha}`;
-      const bdr   = `${tac.color}${Math.round(norm*180).toString(16).padStart(2,'0')}`;
+      const bdr   = `${tac.color}${Math.round(norm * 160).toString(16).padStart(2,'0')}`;
       const attackerCount = (attackersByTech[tid]||new Set()).size;
       return `<div
           onclick="showMitreDetail('${tid}')"
-          style="background:${bg};border:1px solid ${bdr};border-radius:4px;padding:5px 7px;margin-bottom:3px;cursor:pointer;transition:all .15s"
-          onmouseover="this.style.filter='brightness(1.35)';this.style.transform='translateY(-1px)'"
+          style="background:${bg};border:1px solid ${bdr};border-radius:5px;padding:7px 9px;margin-bottom:4px;cursor:pointer;transition:all .15s"
+          onmouseover="this.style.filter='brightness(1.3)';this.style.transform='translateY(-1px)'"
           onmouseout="this.style.filter='';this.style.transform=''">
-        <div style="font-family:var(--font-mono);font-size:10px;color:${tac.color};font-weight:800;letter-spacing:.03em">${tid}</div>
-        <div style="font-size:9px;color:var(--text-primary);margin-top:2px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${tv.name}</div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
-          <span style="font-size:9px;color:var(--text-muted)">${attackerCount} IP${attackerCount!==1?'s':''}</span>
-          <span style="font-size:10px;color:${tac.color};font-weight:700">${tv.count}×</span>
+        <div style="font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:10px;color:${tac.color};font-weight:800;letter-spacing:.03em">${tid}</div>
+        <div style="font-size:9px;color:rgba(248,250,252,0.9);margin-top:3px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${tv.name}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+          <span style="font-size:8.5px;color:rgba(100,116,139,0.9)">${attackerCount} IP</span>
+          <span style="font-size:10.5px;color:${tac.color};font-weight:800">${tv.count}×</span>
         </div>
       </div>`;
-    }).join('') || `<div style="font-size:9px;color:var(--border-dim);text-align:center;padding:12px 0;font-style:italic">—</div>`;
+    }).join('');
 
-    return `<div style="min-width:140px;max-width:160px;display:flex;flex-direction:column">
-      <div style="background:${headerBg};border:1px solid ${headerBdr};border-radius:6px 6px 0 0;padding:8px 10px;text-align:center;margin-bottom:5px">
-        <div style="font-size:10px;font-weight:800;color:${hasHits?tac.color:'var(--text-muted)'};text-transform:uppercase;letter-spacing:.07em;line-height:1.2">${tac.short}</div>
-        ${hasHits
-          ? `<div style="font-size:9px;color:var(--text-muted);margin-top:3px">${techList.length} tech · <span style="color:${tac.color};font-weight:700">${tacHits}</span> hits</div>`
-          : `<div style="font-size:9px;color:var(--border-dim);margin-top:3px">—</div>`}
+    return `<div style="flex:1;min-width:160px;max-width:280px;display:flex;flex-direction:column">
+      <div style="background:${tac.color}20;border:1px solid ${tac.color}55;border-radius:7px 7px 0 0;padding:9px 12px;text-align:center;margin-bottom:5px">
+        <div style="font-size:10px;font-weight:800;color:${tac.color};text-transform:uppercase;letter-spacing:.08em">${tac.short}</div>
+        <div style="font-size:8.5px;color:rgba(100,116,139,0.9);margin-top:3px">${techList.length} tech · <span style="color:${tac.color};font-weight:700">${tacHits}</span> hits</div>
       </div>
       <div>${cells}</div>
     </div>`;
   }).join('');
 
-  heatmapEl.innerHTML = `<div style="display:flex;gap:8px;padding-bottom:8px;min-width:max-content">${cols}</div>`;
+  const inactiveBadges = inactiveTacList.map(t =>
+    `<span style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:4px;padding:3px 8px;text-transform:uppercase;letter-spacing:.05em">${t.short}</span>`
+  ).join('');
+
+  heatmapEl.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">${cols}</div>
+    ${inactiveTacList.length ? `
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:9px;color:rgba(100,116,139,0.5);font-weight:600;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">No activity:</span>
+      ${inactiveBadges}
+    </div>` : ''}
+  `;
 
   // ── Top Techniques ranked list ────────────────────────────────────────────────
   if (!listEl) return;
@@ -318,19 +326,20 @@ function renderMitreHeatmap(attackers) {
     const tacMeta = MITRE_TACTICS.find(t => _normalizeTactic(tv.tactic) === t.id);
     const color   = tacMeta?.color || '#475569';
     const atkCount= (attackersByTech[tid]||new Set()).size;
+    const tacLabel = tacMeta?.short || tv.tactic || '—';
     return `<div onclick="showMitreDetail('${tid}')"
-        style="display:grid;grid-template-columns:46px 1fr 100px 80px 36px;gap:0;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-dim);cursor:pointer;transition:background .12s;border-radius:2px"
+        style="display:grid;grid-template-columns:52px 1fr 110px 90px 44px;gap:0;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-dim);cursor:pointer;transition:background .12s;border-radius:2px"
         onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background=''">
-      <span style="font-family:var(--font-mono);font-size:10px;color:${color};font-weight:800">${tid}</span>
-      <span style="font-size:11px;color:var(--text-primary);padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+      <span style="font-family:var(--font-mono,'JetBrains Mono',monospace);font-size:10px;color:${color};font-weight:800">${tid}</span>
+      <span style="font-size:11px;color:var(--text-primary,#f8fafc);padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
         ${tv.name}
-        <span style="font-size:9px;color:var(--text-muted);margin-left:4px">${atkCount} IP${atkCount!==1?'s':''}</span>
+        <span style="font-size:9px;color:var(--text-muted,#64748b);margin-left:5px">${atkCount}IP</span>
       </span>
-      <span style="font-size:10px;color:var(--text-muted);padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tv.tactic}</span>
-      <div style="height:4px;background:var(--border-dim);border-radius:2px;overflow:hidden">
+      <span style="font-size:9.5px;color:${color};padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600">${tacLabel}</span>
+      <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-right:8px">
         <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width .4s"></div>
       </div>
-      <span style="font-size:11px;color:${color};font-weight:700;text-align:right;padding-left:8px">${tv.count}</span>
+      <span style="font-size:11px;color:${color};font-weight:700;text-align:right">${tv.count}</span>
     </div>`;
   }).join('');
 
@@ -362,36 +371,38 @@ function showMitreDetail(tid) {
   ).join('') || `<div style="font-size:11px;color:var(--text-muted);font-style:italic">No commands captured</div>`;
 
   panel.innerHTML = `
-    <div style="margin-bottom:14px">
-      <div style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:${color}">${tid}</div>
-      <div style="font-size:14px;color:var(--text-primary);font-weight:600;margin-top:4px">${tech.name}</div>
-      <div style="display:inline-block;margin-top:8px;background:${color}1a;border:1px solid ${color}44;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:.06em">${tech.tactic}</div>
+    <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:16px">
+      <div style="flex:1;min-width:200px">
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:800;color:${color}">${tid}</div>
+        <div style="font-size:15px;color:var(--text-primary);font-weight:600;margin-top:4px">${tech.name}</div>
+        <div style="display:inline-block;margin-top:8px;background:${color}1a;border:1px solid ${color}44;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:.06em">${tech.tactic}</div>
+      </div>
+      <div style="display:flex;gap:12px;flex-shrink:0">
+        <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:6px;padding:14px 20px;text-align:center">
+          <div style="font-size:26px;font-weight:800;color:${color}">${tech.count}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Total Hits</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:6px;padding:14px 20px;text-align:center">
+          <div style="font-size:26px;font-weight:800;color:${color}">${ips.length}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Unique IPs</div>
+        </div>
+      </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-      <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:6px;padding:10px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:${color}">${tech.count}</div>
-        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Total Hits</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
+          <i class="fa-solid fa-terminal" style="color:#10b981;margin-right:4px"></i>Matched Commands
+        </div>
+        ${cmdRows}
       </div>
-      <div style="background:rgba(255,255,255,0.04);border:1px solid var(--border-dim);border-radius:6px;padding:10px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:${color}">${ips.length}</div>
-        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">Unique IPs</div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
+          <i class="fa-solid fa-crosshairs" style="color:var(--accent);margin-right:4px"></i>Attacker IPs (${ips.length})
+        </div>
+        ${ipRows}
+        ${ips.length > 8 ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px">+${ips.length-8} more</div>` : ''}
       </div>
-    </div>
-
-    <div style="margin-bottom:14px">
-      <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">
-        <i class="fa-solid fa-terminal" style="color:#10b981;margin-right:4px"></i>Matched Commands
-      </div>
-      ${cmdRows}
-    </div>
-
-    <div>
-      <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">
-        <i class="fa-solid fa-crosshairs" style="color:var(--accent);margin-right:4px"></i>Attacker IPs (${ips.length})
-      </div>
-      ${ipRows}
-      ${ips.length > 8 ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px">+${ips.length-8} more</div>` : ''}
     </div>
   `;
 }

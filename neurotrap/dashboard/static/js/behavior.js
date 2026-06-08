@@ -16,7 +16,7 @@ const TIER_META = {
   advanced_human: { label: 'Advanced Human', color: '#f43f5e', icon: 'fa-user-ninja', desc: 'Skilled operator, targeted intrusion' },
 };
 
-const ATTACK_ICONS = {
+const BEH_ATTACK_ICONS = {
   brute_force: 'fa-key', port_scan: 'fa-radar', command_injection: 'fa-terminal',
   malware_upload: 'fa-virus', protocol_anomaly: 'fa-triangle-exclamation',
   tool_fingerprint: 'fa-fingerprint', data_exfiltration: 'fa-file-export',
@@ -191,7 +191,7 @@ function renderAttackVectors(byType) {
     const pct    = Math.round((t.count / max) * 100);
     const share  = Math.round((t.count / total) * 100);
     const color  = colors[i % colors.length];
-    const icon   = ATTACK_ICONS[key] || 'fa-bolt';
+    const icon   = BEH_ATTACK_ICONS[key] || 'fa-bolt';
     const label  = key.replace(/_/g, ' ');
     return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:13px">
       <i class="fa-solid ${icon}" style="color:${color};width:14px;text-align:center;font-size:11px;flex-shrink:0"></i>

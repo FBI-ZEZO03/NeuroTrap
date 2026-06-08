@@ -26,12 +26,24 @@
 
   --sans:'Inter',system-ui,sans-serif;
   --mono:'JetBrains Mono','Courier New',monospace;
+  --font-mono:'JetBrains Mono','Courier New',monospace;
 
   --sidebar:240px;
   --header:56px;
   --radius:10px;
   --radius-sm:6px;
   --radius-lg:14px;
+
+  --text-primary:#f8fafc;
+  --text:#cbd5e1;
+  --text-muted:#64748b;
+  --text-dim:#475569;
+  --border-dim:rgba(255,255,255,0.07);
+  --bd:rgba(255,255,255,0.1);
+  --bg-elevated:rgba(255,255,255,0.06);
+  --bg3:#1d2a45;
+  --accent:#22d3ee;
+  --accent2:#a855f7;
 }
 
 html{scrollbar-gutter:stable;scroll-behavior:smooth}
@@ -181,13 +193,15 @@ input,select,textarea{font-family:var(--sans)}
   display:flex;align-items:center;gap:14px;
   position:relative;overflow:hidden;
   transition:border-color 0.2s,box-shadow 0.2s;cursor:default;
+  min-width:0;
 }
 .kpi-card:hover{border-color:var(--border2);box-shadow:0 4px 20px rgba(0,0,0,0.3)}
 .kpi-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--kc,var(--indigo));opacity:0.5}
 .kpi-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--kc,var(--indigo));background:color-mix(in srgb,var(--kc,var(--indigo)) 12%,transparent);border:1px solid color-mix(in srgb,var(--kc,var(--indigo)) 20%,transparent);flex-shrink:0;transition:box-shadow 0.3s}
 .kpi-card:hover .kpi-icon{box-shadow:0 0 16px color-mix(in srgb,var(--kc,var(--indigo)) 30%,transparent)}
-.kpi-val{font-size:24px;font-weight:700;color:var(--kc,var(--t1));font-family:var(--mono);line-height:1}
-.kpi-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-top:3px;font-weight:500}
+.kpi-card>div:not(.kpi-icon){min-width:0;overflow:hidden;flex:1}
+.kpi-val{font-size:20px;font-weight:700;color:var(--kc,var(--t1));font-family:var(--mono);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-top:3px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Card */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
@@ -264,6 +278,47 @@ input,select,textarea{font-family:var(--sans)}
 .map-legend{display:flex;gap:14px;padding:8px 0 0;flex-wrap:wrap}
 .map-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--t3);font-family:var(--mono)}
 .map-legend-dot{width:8px;height:8px;border-radius:50%}
+
+/* ══ GEO MAP ══════════════════════════════════════════════════════ */
+
+/* Scan line sweep */
+@keyframes scanSweep{0%{top:-4px;opacity:0}5%{opacity:1}95%{opacity:0.7}100%{top:100%;opacity:0}}
+.geo-scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(34,211,238,0.0) 10%,rgba(34,211,238,0.7) 50%,rgba(34,211,238,0.0) 90%,transparent 100%);box-shadow:0 0 12px 2px rgba(34,211,238,0.35);animation:scanSweep 5s ease-in-out infinite;z-index:450;pointer-events:none}
+
+/* Legend overlay (top-right corner of map) */
+.geo-legend-overlay{position:absolute;top:14px;right:14px;z-index:500;background:rgba(8,14,28,0.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(34,211,238,0.18);border-radius:9px;padding:10px 13px;min-width:150px;pointer-events:none}
+.geo-legend-row{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--text-muted,#64748b);font-family:var(--font-mono,'JetBrains Mono',monospace);padding:2px 0}
+.geo-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* Stats strip (bottom of map) */
+.geo-stats-strip{position:absolute;bottom:0;left:0;right:0;z-index:500;background:linear-gradient(0deg,rgba(4,10,20,0.95) 0%,rgba(4,10,20,0.7) 80%,transparent 100%);padding:12px 18px 10px;font-size:11px;color:var(--text-muted,#64748b);font-family:var(--font-mono,'JetBrains Mono',monospace);display:flex;align-items:center;flex-wrap:wrap;gap:2px;pointer-events:none}
+
+/* Server marker */
+.geo-server-wrap{position:relative;width:60px;height:60px;transform:translate(-30px,-30px)}
+@keyframes serverRing{0%{transform:scale(0.6);opacity:0.9}100%{transform:scale(1.8);opacity:0}}
+@keyframes serverRing2{0%{transform:scale(0.6);opacity:0.7}100%{transform:scale(2.4);opacity:0}}
+.geo-server-ring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(16,185,129,0.7);animation:serverRing 2.2s ease-out infinite}
+.geo-server-ring-2{border-color:rgba(16,185,129,0.4);animation:serverRing2 2.2s ease-out infinite 1.1s}
+.geo-server-dot{position:absolute;top:50%;left:50%;width:14px;height:14px;border-radius:50%;background:#10b981;box-shadow:0 0 16px 4px rgba(16,185,129,0.7),0 0 6px rgba(0,0,0,0.8);transform:translate(-50%,-50%)}
+.geo-server-label{position:absolute;top:calc(50% + 14px);left:50%;transform:translateX(-50%);font-size:7.5px;font-weight:800;letter-spacing:.12em;color:#10b981;font-family:'JetBrains Mono','Courier New',monospace;white-space:nowrap;text-shadow:0 0 8px rgba(16,185,129,0.8)}
+
+/* Attacker markers */
+.geo-marker-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+@keyframes geoRing{0%{transform:translate(-50%,-50%) scale(0.5);opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
+.geo-ring{position:absolute;top:0;left:0;border-radius:50%;border:1.5px solid currentColor;transform:translate(-50%,-50%);animation:geoRing 2s ease-out infinite;opacity:0}
+.geo-ring-2{animation-delay:1s}
+.geo-dot{position:absolute;top:0;left:0;border-radius:50%;transform:translate(-50%,-50%)}
+
+/* Arc draw animation */
+@keyframes arcDraw{from{stroke-dashoffset:var(--arc-len,800)}to{stroke-dashoffset:0}}
+.geo-arc-line{fill:none!important}
+
+/* IP grid */
+.geo-ip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:14px}
+
+/* Leaflet popup theming for geo map */
+.leaflet-popup-content-wrapper{background:rgba(8,14,28,0.95)!important;border:1px solid rgba(34,211,238,0.2)!important;color:#cbd5e1!important;border-radius:8px!important;font-family:'JetBrains Mono','Courier New',monospace!important;font-size:11px!important;box-shadow:0 8px 32px rgba(0,0,0,0.5)!important}
+.leaflet-popup-tip{background:rgba(8,14,28,0.95)!important}
 
 /* Env cards */
 .env-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;transition:border-color 0.2s}
