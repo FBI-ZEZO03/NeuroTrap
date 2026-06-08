@@ -341,6 +341,7 @@ const GEO_COLORS   = { critical:'#f43f5e', high:'#f59e0b', medium:'#a855f7', low
 let _geoMarkers    = new Map();   // ip → L.marker
 let _geoArcs       = new Map();   // ip → L.polyline
 let _geoKnownIPs   = new Set();
+let _geoScores     = new Map();   // ip → highest threat score seen (never downgrade)
 let _geoRefreshId  = null;
 
 function _geoSev(score) {
@@ -410,6 +411,7 @@ function _placeGeoMarker(lat, lon, ip, score) {
   );
   marker.on('click', () => { try { openModal(ip); } catch(_) {} });
   _geoMarkers.set(ip, marker);
+  _geoScores.set(ip, score);
 
   // Animated arc on new IPs
   if (isNew) _drawArc(lat, lon, c, ip);
@@ -579,8 +581,9 @@ function _renderGeoIPGrid(attackers) {
 }
 
 function addMarker(lat, lon, ip, sev) {
-  // WebSocket live push — score approximated from severity label
-  const score = sev === 'critical' ? 95 : sev === 'high' ? 75 : sev === 'medium' ? 45 : 15;
+  // Use the higher of the event severity and the profile score already on the map.
+  const evtScore = sev === 'critical' ? 95 : sev === 'high' ? 75 : sev === 'medium' ? 45 : 15;
+  const score = Math.max(evtScore, _geoScores.get(ip) || 0);
   _placeGeoMarker(lat, lon, ip, score);
 }
 
@@ -632,7 +635,7 @@ function initWebSocket() {
     state.socket.on('connect', () => { setWs(true); state.socket.emit('subscribe_events'); });
     state.socket.on('disconnect', () => setWs(false));
     state.socket.on('new_event', e => { addFeed(e); pushTimeline(); if(e.latitude&&e.longitude) addMarker(e.latitude,e.longitude,e.src_ip,e.severity); });
-    state.socket.on('profile_update', () => fetchDashboard());
+    state.socket.on('profile_update', () => { fetchDashboard(); if (state.loaded.geomap) loadGeoMapMarkers(); });
   } catch(e) {}
 }
 function setWs(c) {

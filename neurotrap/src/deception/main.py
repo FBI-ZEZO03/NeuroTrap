@@ -31,18 +31,20 @@ def main():
     profile_store = ProfileStore(db["attacker_profiles"])
 
     logger.info("DeceptionEngine running — watching for new profiles…")
-    seen_ips: set = set()
+
+    from ..behavior.attacker_profile import AttackerProfile
 
     try:
         while True:
-            # Watch for high-threat profiles that haven't been engaged yet
+            # Build the set of IPs that already have a live environment this cycle.
+            active_ips = {env.src_ip for env in deception_engine.get_active_environments()}
+
             profiles = profile_store.get_top_threats(limit=5)
             for p_dict in profiles:
                 ip = p_dict.get("src_ip")
-                if ip in seen_ips:
+                if ip in active_ips:
                     continue
 
-                from ..behavior.attacker_profile import AttackerProfile
                 profile = AttackerProfile(**{k: v for k, v in p_dict.items()
                                              if k in AttackerProfile.__dataclass_fields__})
 
@@ -50,7 +52,6 @@ def main():
                     deception_engine.generate_environment(profile)
                     decision = response_engine.evaluate(profile)
                     logger.info("Response for %s: %s", ip, decision.action)
-                    seen_ips.add(ip)
 
             time.sleep(10)
     except KeyboardInterrupt:
