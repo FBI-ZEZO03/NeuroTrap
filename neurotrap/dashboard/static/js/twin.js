@@ -4,7 +4,7 @@
    Loaded after app.js; uses the shared `state`, setText, timeSince.
 ════════════════════════════════════════════════════════════ */
 
-const TIER_META = {
+const TWIN_TIER_META = {
   beginner:       {label:'Beginner',      color:'#10b981', icon:'fa-seedling'},
   automated_bot:  {label:'Automated Bot',  color:'#f59e0b', icon:'fa-robot'},
   advanced_human: {label:'Advanced Human', color:'#f43f5e', icon:'fa-user-secret'},
@@ -41,7 +41,7 @@ function renderTwinList(){
   const el = document.getElementById('twin-list'); if(!el) return;
   if(!state.twins.length){ el.innerHTML = '<div style="color:var(--t4);text-align:center;padding:32px;font-size:12px">No twins yet — attack a honeypot, then Refresh.</div>'; return; }
   el.innerHTML = state.twins.map(t=>{
-    const tm = TIER_META[t.attacker_tier] || TIER_META.beginner;
+    const tm = TWIN_TIER_META[t.attacker_tier] || TWIN_TIER_META.beginner;
     const sel = state.selectedTwin===t.src_ip ? 'border-color:#38bdf8;background:rgba(56,189,248,0.08)' : '';
     const sev = t.threat_score>=70?'#f43f5e':t.threat_score>=40?'#f59e0b':'#10b981';
     return '<div onclick="selectTwin(\'' + t.src_ip + '\')" style="cursor:pointer;border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin-bottom:8px;transition:.15s;' + sel + '">'
@@ -75,7 +75,7 @@ function chip(txt, color){
 
 function renderTwinDetail(t){
   const el = document.getElementById('twin-detail'); if(!el) return;
-  const tm = TIER_META[t.attacker_tier] || TIER_META.beginner;
+  const tm = TWIN_TIER_META[t.attacker_tier] || TWIN_TIER_META.beginner;
   const psych = t.psychology || {};
   const stat = (label,val,color)=>'<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t4);margin-bottom:3px">' + label + '</div><div style="font-size:16px;font-weight:700;color:' + (color||'var(--t1)') + '">' + val + '</div></div>';
   let html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px">'
