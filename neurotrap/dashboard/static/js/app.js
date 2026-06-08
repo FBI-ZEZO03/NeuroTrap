@@ -208,6 +208,9 @@ function initApp() {
   fetchDashboard();
   fetchTopCountries();
   setInterval(() => { fetchDashboard(); fetchTopCountries(); }, 15000);
+  /* Preload heavy sections in background so they're instant on first click */
+  setTimeout(() => { if (typeof loadBehavior === 'function') loadBehavior(); }, 1500);
+  setTimeout(() => { if (typeof loadIntel   === 'function') loadIntel();    }, 3000);
 }
 
 function _renderTopCountries(d) {
@@ -281,8 +284,13 @@ function navigate(section, el) {
     if (!state.loaded.mitre) { loadMitre(); state.loaded.mitre = true; }
   }
   if (section === 'behavior') {
-    if (typeof _behClearLoading === 'function') _behClearLoading();
-    loadBehavior(); state.loaded.behavior = true;
+    if (state.loaded.behavior) {
+      /* Data already fetched (preloaded or previous visit) — just re-render */
+      if (typeof renderBehaviorTable === 'function') renderBehaviorTable();
+    } else {
+      if (typeof _behClearLoading === 'function') _behClearLoading();
+      loadBehavior(); state.loaded.behavior = true;
+    }
   }
   if (section === 'cbee'  && !state.loaded.cbee)  { loadCBEE();  state.loaded.cbee = true; }
   if (section === 'gadcf' && !state.loaded.gadcf) { initGADCF(); loadGADCF(); state.loaded.gadcf = true; }

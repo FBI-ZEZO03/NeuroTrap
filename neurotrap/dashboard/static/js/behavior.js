@@ -53,6 +53,7 @@ async function loadBehavior() {
     const stats     = statsRes.status === 'fulfilled' ? statsRes.value                : {};
 
     _behaviorAttackers = attackers;
+    if (typeof state !== 'undefined') state.loaded.behavior = true;
 
     renderBehKPIs(attackers, stats);
     renderIntentDist(attackers);
