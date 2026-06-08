@@ -281,6 +281,7 @@ function navigate(section, el) {
     if (!state.loaded.mitre) { loadMitre(); state.loaded.mitre = true; }
   }
   if (section === 'behavior') {
+    if (typeof _behClearLoading === 'function') _behClearLoading();
     loadBehavior(); state.loaded.behavior = true;
   }
   if (section === 'cbee'  && !state.loaded.cbee)  { loadCBEE();  state.loaded.cbee = true; }

@@ -28,21 +28,25 @@ let _behaviorSort = { key: 'threat_score', dir: -1 };
 
 /* ── Main loader ─────────────────────────────────────────────────────────── */
 
-function _fetchWithTimeout(url, ms = 10000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  return fetch(url, { signal: ctrl.signal })
-    .then(r => r.json())
-    .catch(() => ({}))
-    .finally(() => clearTimeout(timer));
+function _behClearLoading() {
+  ['beh-intent-dist','beh-tiers','beh-attack-vectors','beh-top-commands','beh-confidence-dist'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.querySelector('.fa-spin')) el.innerHTML = '<div class="feed-empty">No data yet</div>';
+  });
+  const tbody = document.getElementById('beh-profile-tbody');
+  if (tbody && tbody.querySelector('.fa-spin')) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:28px">No profiles yet</td></tr>';
 }
 
 async function loadBehavior() {
   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => { ctrl.abort(); _behClearLoading(); }, 8000);
+
     const [atkRes, statsRes] = await Promise.allSettled([
-      _fetchWithTimeout('/api/attackers?limit=500'),
-      _fetchWithTimeout('/api/events/stats'),
+      fetch('/api/attackers?limit=500', { signal: ctrl.signal }).then(r => r.json()).catch(() => ({})),
+      fetch('/api/events/stats',         { signal: ctrl.signal }).then(r => r.json()).catch(() => ({})),
     ]);
+    clearTimeout(timer);
 
     const attackers = atkRes.status    === 'fulfilled' ? (atkRes.value.attackers || []) : [];
     const stats     = statsRes.status  === 'fulfilled' ? statsRes.value                 : {};
@@ -56,13 +60,8 @@ async function loadBehavior() {
     renderTopCommands(attackers);
     renderConfidenceDist(attackers);
     renderBehaviorTable();
-  } catch (err) {
-    ['beh-intent-dist','beh-tiers','beh-attack-vectors','beh-top-commands','beh-confidence-dist'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.innerHTML = '<div class="feed-empty">Failed to load data — click Refresh to retry.</div>';
-    });
-    const tbody = document.getElementById('beh-profile-tbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:28px">Failed to load — click Refresh to retry.</td></tr>';
+  } catch (_) {
+    _behClearLoading();
   }
 }
 
