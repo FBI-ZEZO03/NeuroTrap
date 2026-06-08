@@ -362,9 +362,65 @@ def get_attacker(src_ip: str):
         return jsonify({})
 
     profile = db["attacker_profiles"].find_one({"src_ip": src_ip}, {"_id": 0})
-    if not profile:
-        abort(404, description=f"No profile found for {src_ip}")
-    return jsonify(profile)
+    if profile:
+        return jsonify(profile)
+
+    # No behavior-engine profile yet — synthesize a lightweight view from alert_events
+    # so the modal shows real data instead of 0/unknown for newly seen IPs.
+    events = list(
+        db["alert_events"]
+        .find({"src_ip": src_ip}, {"_id": 0})
+        .sort("timestamp", -1)
+        .limit(200)
+    )
+    if not events:
+        abort(404, description=f"No data found for {src_ip}")
+
+    sev_weight = {"critical": 25, "high": 15, "medium": 8, "low": 2}
+    raw_score = min(sum(sev_weight.get(e.get("severity", "low"), 2) for e in events), 100)
+    timestamps = [e["timestamp"] for e in events if e.get("timestamp")]
+    attack_types = list({e["attack_type"] for e in events if e.get("attack_type")})
+    severities = [e.get("severity", "low") for e in events]
+    dominant_sev = max(set(severities), key=severities.count)
+
+    return jsonify({
+        "src_ip": src_ip,
+        "classified_intent": "profiling",
+        "attacker_tier": "profiling",
+        "threat_score": round(raw_score, 1),
+        "session_count": 0,
+        "total_commands": 0,
+        "first_seen": min(timestamps) if timestamps else None,
+        "last_seen": max(timestamps) if timestamps else None,
+        "ttps": [],
+        "event_count": len(events),
+        "attack_types_seen": attack_types,
+        "dominant_severity": dominant_sev,
+        "_synthesized": True,
+    })
+
+
+@app.route("/api/profiles/recalculate", methods=["POST"])
+@require_admin
+def recalculate_profiles():
+    """Recompute threat scores for all attacker profiles using stored session data.
+    Useful after a score formula change to immediately reflect new scores on the map."""
+    db = get_db()
+    if db is None:
+        return jsonify({"error": "Database unavailable"}), 503
+    try:
+        from src.behavior.attacker_profile import ProfileStore
+        store = ProfileStore(db["attacker_profiles"])
+        count = store.recalculate_all()
+        # Bust the attackers cache so the map picks up new scores immediately
+        _CACHE.pop("attackers", None)
+        for key in list(_CACHE.keys()):
+            if key.startswith("attackers"):
+                del _CACHE[key]
+        return jsonify({"updated": count, "message": f"Recalculated threat scores for {count} profiles"})
+    except Exception as exc:
+        logger.error("Recalculate profiles error: %s", exc)
+        return jsonify({"error": str(exc)}), 500
 
 
 # ── Response API ───────────────────────────────────────────────────────────────

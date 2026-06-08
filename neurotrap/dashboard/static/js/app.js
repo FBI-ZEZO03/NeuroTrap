@@ -235,9 +235,10 @@ function _renderTopCountries(d) {
     return;
   }
   const max = countries[0].count || 1;
+  const RANK_COLORS = ['#f43f5e','#f59e0b','#a855f7','#6366f1','#22d3ee','#10b981','#3b82f6','#ec4899','#14b8a6','#8b5cf6'];
   el.innerHTML = countries.map((c, i) => {
     const pct = Math.round((c.count / max) * 100);
-    const color = i === 0 ? '#f43f5e' : i === 1 ? '#f59e0b' : i < 4 ? '#a855f7' : '#475569';
+    const color = RANK_COLORS[i] || '#22d3ee';
     return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-dim)">
       <span style="color:${color};font-weight:700;font-size:11px;width:18px;text-align:right">${i + 1}</span>
       <span style="flex:1;color:var(--text-primary);font-size:12px">${c.country}</span>
@@ -955,17 +956,39 @@ async function openModal(ip) {
   document.getElementById('modal-ttps').innerHTML = '<span style="color:var(--t4);font-size:11px">Loading…</span>';
   document.getElementById('profile-modal').classList.remove('hidden');
   let p;
-  try { const r = await fetch('/api/attackers/'+ip); if(!r.ok) throw 0; p = await r.json(); }
-  catch { p = { classified_intent:'malware_deployment', attacker_tier:'advanced_human', session_count:3, total_commands:24, threat_score:94, first_seen:Date.now()/1000-3600, last_seen:Date.now()/1000-120, ttps:[{technique_id:'T1105'},{technique_id:'T1003.008'},{technique_id:'T1053.003'},{technique_id:'T1021.004'},{technique_id:'T1496'},{technique_id:'T1033'}] }; }
+  try {
+    const r = await fetch('/api/attackers/'+ip);
+    if (r.status === 404) {
+      // IP seen in events but not yet profiled by the behavior engine
+      p = { classified_intent:'unknown', attacker_tier:'unknown', session_count:0, total_commands:0, threat_score:0, ttps:[] };
+    } else if (!r.ok) {
+      throw new Error(r.status);
+    } else {
+      p = await r.json();
+    }
+  } catch {
+    // Genuine network/server failure — show neutral fallback, not fake high-score demo data
+    p = { classified_intent:'unknown', attacker_tier:'unknown', session_count:0, total_commands:0, threat_score:0, ttps:[] };
+  }
   setText('modal-intent',(p.classified_intent||'—').replace(/_/g,' '));
   setText('modal-tier',(p.attacker_tier||'—').replace(/_/g,' '));
-  setText('modal-sessions',`${p.session_count||0} sessions · ${p.total_commands||0} cmds`);
+  if (p._synthesized) {
+    setText('modal-sessions', `${p.event_count||0} events · behavior engine pending`);
+  } else {
+    setText('modal-sessions',`${p.session_count||0} sessions · ${p.total_commands||0} cmds`);
+  }
   setText('modal-first', fmtTs(p.first_seen) + (p.first_seen ? ' UTC+3' : ''));
   setText('modal-last',  fmtTs(p.last_seen)  + (p.last_seen  ? ' UTC+3' : ''));
   setText('modal-score-val',(p.threat_score||0).toFixed(0));
   const g = document.getElementById('modal-ttps');
   const ttps = p.ttps||[];
-  g.innerHTML = ttps.length ? ttps.slice(0,16).map(t=>`<span class="ttp-chip" title="${t.technique_name||''}">${t.technique_id}</span>`).join('') : '<span style="color:var(--t4);font-size:11px">No TTPs detected</span>';
+  if (ttps.length) {
+    g.innerHTML = ttps.slice(0,16).map(t=>`<span class="ttp-chip" title="${t.technique_name||''}">${t.technique_id}</span>`).join('');
+  } else if (p._synthesized && (p.attack_types_seen||[]).length) {
+    g.innerHTML = p.attack_types_seen.map(t=>`<span class="ttp-chip">${t.replace(/_/g,' ')}</span>`).join('');
+  } else {
+    g.innerHTML = '<span style="color:var(--t4);font-size:11px">No TTPs detected</span>';
+  }
   drawGauge('modal-gauge', p.threat_score||0, 180, 100);
 }
 function handleModalBg(e) { if (e.target === document.getElementById('profile-modal')) closeModal(); }
