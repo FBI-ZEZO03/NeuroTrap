@@ -326,8 +326,17 @@ def get_attackers():
         return jsonify({"attackers": []})
 
     limit = min(int(request.args.get("limit", 50)), 200)
+    include_sessions = request.args.get("sessions", "0") == "1"
     cursor = db["attacker_profiles"].find({}, {"_id": 0}).sort("threat_score", -1).limit(limit)
-    return jsonify({"attackers": list(cursor)})
+    profiles = []
+    for p in cursor:
+        sessions = p.get("sessions") or []
+        conf_vals = [s["confidence"] for s in sessions if s.get("confidence") is not None]
+        p["avg_confidence"] = round(sum(conf_vals) / len(conf_vals), 4) if conf_vals else 0.0
+        if not include_sessions:
+            p.pop("sessions", None)
+        profiles.append(p)
+    return jsonify({"attackers": profiles})
 
 
 @app.route("/api/attackers/<src_ip>", methods=["GET"])

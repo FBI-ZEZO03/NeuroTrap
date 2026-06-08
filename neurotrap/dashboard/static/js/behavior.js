@@ -38,18 +38,19 @@ function _behClearLoading() {
 }
 
 async function loadBehavior() {
+  /* ── Stage 1: lightweight requests (no raw sessions) — renders in <1s ── */
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => { ctrl.abort(); _behClearLoading(); }, 8000);
+    const ctrl1 = new AbortController();
+    const t1 = setTimeout(() => { ctrl1.abort(); _behClearLoading(); }, 10000);
 
     const [atkRes, statsRes] = await Promise.allSettled([
-      fetch('/api/attackers?limit=500', { signal: ctrl.signal }).then(r => r.json()).catch(() => ({})),
-      fetch('/api/events/stats',         { signal: ctrl.signal }).then(r => r.json()).catch(() => ({})),
+      fetch('/api/attackers?limit=500', { signal: ctrl1.signal }).then(r => r.json()).catch(() => ({})),
+      fetch('/api/events/stats',        { signal: ctrl1.signal }).then(r => r.json()).catch(() => ({})),
     ]);
-    clearTimeout(timer);
+    clearTimeout(t1);
 
-    const attackers = atkRes.status    === 'fulfilled' ? (atkRes.value.attackers || []) : [];
-    const stats     = statsRes.status  === 'fulfilled' ? statsRes.value                 : {};
+    const attackers = atkRes.status  === 'fulfilled' ? (atkRes.value.attackers || []) : [];
+    const stats     = statsRes.status === 'fulfilled' ? statsRes.value                : {};
 
     _behaviorAttackers = attackers;
 
@@ -57,11 +58,27 @@ async function loadBehavior() {
     renderIntentDist(attackers);
     renderTierBreakdown(attackers);
     renderAttackVectors(stats.by_attack_type || []);
-    renderTopCommands(attackers);
-    renderConfidenceDist(attackers);
     renderBehaviorTable();
   } catch (_) {
     _behClearLoading();
+    return;
+  }
+
+  /* ── Stage 2: heavy request (raw sessions for charts) — renders async ── */
+  try {
+    const ctrl2 = new AbortController();
+    const t2 = setTimeout(() => ctrl2.abort(), 20000);
+
+    const sessRes = await fetch('/api/attackers?limit=200&sessions=1', { signal: ctrl2.signal })
+      .then(r => r.json()).catch(() => ({}));
+    clearTimeout(t2);
+
+    const sessAttackers = sessRes.attackers || [];
+    renderTopCommands(sessAttackers);
+    renderConfidenceDist(sessAttackers);
+  } catch (_) {
+    renderTopCommands([]);
+    renderConfidenceDist([]);
   }
 }
 
@@ -70,16 +87,11 @@ async function loadBehavior() {
 function renderBehKPIs(attackers, stats) {
   const _s = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
-  const totalSessions  = attackers.reduce((s, a) => s + (a.session_count || 0), 0);
-  const totalCommands  = attackers.reduce((s, a) => s + (a.total_commands || 0), 0);
+  const totalSessions = attackers.reduce((s, a) => s + (a.session_count || 0), 0);
+  const totalCommands = attackers.reduce((s, a) => s + (a.total_commands || 0), 0);
 
-  let totalConf = 0, confCount = 0;
-  attackers.forEach(a => {
-    (a.sessions || []).forEach(sess => {
-      if (sess.confidence != null) { totalConf += sess.confidence; confCount++; }
-    });
-  });
-  const avgConf = confCount > 0 ? (totalConf / confCount * 100).toFixed(1) + '%' : '—';
+  const confVals = attackers.map(a => a.avg_confidence).filter(v => v != null && v > 0);
+  const avgConf  = confVals.length ? (confVals.reduce((s, v) => s + v, 0) / confVals.length * 100).toFixed(1) + '%' : '—';
 
   _s('beh-kpi-profiles',   attackers.length || '—');
   _s('beh-kpi-sessions',   totalSessions ? totalSessions.toLocaleString() : '—');
@@ -320,10 +332,8 @@ function renderBehaviorTable() {
     const score  = a.threat_score || 0;
     const sColor = score >= 70 ? '#f43f5e' : score >= 40 ? '#f59e0b' : '#64748b';
 
-    const sessions  = a.sessions || [];
-    const confVals  = sessions.map(s => s.confidence).filter(c => c != null);
-    const avgConf   = confVals.length ? confVals.reduce((s, v) => s + v, 0) / confVals.length : 0;
-    const cColor    = avgConf >= 0.8 ? '#10b981' : avgConf >= 0.5 ? '#f59e0b' : '#64748b';
+    const avgConf = a.avg_confidence || 0;
+    const cColor  = avgConf >= 0.8 ? '#10b981' : avgConf >= 0.5 ? '#f59e0b' : '#64748b';
 
     return `<tr onclick="openModal('${a.src_ip}')" style="cursor:pointer"
         onmouseover="this.style.background='rgba(255,255,255,0.03)'"
@@ -378,10 +388,7 @@ function renderBehaviorTable() {
 }
 
 function _behSortVal(a, key) {
-  if (key === 'avg_confidence') {
-    const vals = (a.sessions || []).map(s => s.confidence).filter(c => c != null);
-    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
-  }
+  if (key === 'avg_confidence') return a.avg_confidence || 0;
   return a[key] ?? '';
 }
 
