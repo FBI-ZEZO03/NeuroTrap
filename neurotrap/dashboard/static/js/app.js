@@ -171,7 +171,7 @@ const state = {
   eventsFeedPage: 0,
   timelineBuckets: new Array(60).fill(0),
   selectedIP: null,
-  loaded: { intel:false, cbee:false, gadcf:false, fhim:false, twin:false, soc:false, attackers:false, responses:false, geomap:false, mitre:false, behavior:false },
+  loaded: { intel:false, cbee:false, gadcf:false, fhim:false, twin:false, soc:false, attackers:false, responses:false, environments:false, geomap:false, mitre:false, behavior:false },
   twins: [], selectedTwin: null,
 };
 
@@ -208,9 +208,27 @@ function initApp() {
   fetchDashboard();
   fetchTopCountries();
   setInterval(() => { fetchDashboard(); fetchTopCountries(); }, 15000);
-  /* Preload heavy sections in background so they're instant on first click */
-  setTimeout(() => { if (typeof loadBehavior === 'function') loadBehavior(); }, 1500);
-  setTimeout(() => { if (typeof loadIntel   === 'function') loadIntel();    }, 3000);
+  _preloadAll();
+}
+
+function _preloadAll() {
+  /* Staggered background preload — all sections ready before user clicks them */
+  const tasks = [
+    [800,  () => { if (typeof loadBehavior==='function') loadBehavior(); }],
+    [1600, () => { if (typeof loadIntel==='function')    { loadIntel();    state.loaded.intel=true;  } }],
+    [2400, () => { if (typeof loadMitre==='function')    { loadMitre();    state.loaded.mitre=true;  } }],
+    [3200, () => { if (typeof loadCBEE==='function')     { loadCBEE();     state.loaded.cbee=true;   } }],
+    [3800, () => { if (typeof initGADCF==='function') initGADCF();
+                   if (typeof loadGADCF==='function')    { loadGADCF();    state.loaded.gadcf=true;  } }],
+    [4400, () => { if (typeof loadFHIM==='function')     { loadFHIM();     state.loaded.fhim=true;   } }],
+    [5000, () => { if (typeof loadTwin==='function')     { loadTwin();     state.loaded.twin=true;   } }],
+    [5600, () => { if (typeof loadSOC==='function')      { loadSOC();      state.loaded.soc=true;    } }],
+    [6200, () => { if (typeof loadFullAttackers==='function') loadFullAttackers(); }],
+    [6800, () => { if (typeof loadFullEnvs==='function')      loadFullEnvs();      }],
+    [7400, () => { if (typeof loadResponses==='function')     loadResponses();     }],
+    [8000, () => { if (typeof loadGeoMapMarkers==='function') loadGeoMapMarkers(); }],
+  ];
+  tasks.forEach(([ms, fn]) => setTimeout(fn, ms));
 }
 
 function _renderTopCountries(d) {
@@ -271,36 +289,30 @@ function navigate(section, el) {
   // close mobile sidebar
   document.getElementById('sidebar').classList.remove('open');
 
-  // Lazy-load section data
+  // Section data — preloaded sections render instantly; others fetch on demand
   if (section === 'intel') {
     if (!state.loaded.intel) { loadIntel(); state.loaded.intel = true; }
     setTimeout(() => { if (state.map) state.map.invalidateSize(); }, 50);
   }
   if (section === 'geomap') {
     if (!state.loaded.geomap) { initGeoMap(); loadGeoMapMarkers(); state.loaded.geomap = true; }
-    setTimeout(() => { if (state.geoMap) state.geoMap.invalidateSize(); }, 50);
+    else setTimeout(() => { if (state.geoMap) state.geoMap.invalidateSize(); }, 50);
+    if (state.geoMap) setTimeout(() => state.geoMap.invalidateSize(), 50);
   }
-  if (section === 'mitre') {
-    if (!state.loaded.mitre) { loadMitre(); state.loaded.mitre = true; }
-  }
+  if (section === 'mitre'   && !state.loaded.mitre)   { loadMitre();   state.loaded.mitre=true;   }
   if (section === 'behavior') {
-    if (state.loaded.behavior) {
-      /* Data already fetched (preloaded or previous visit) — just re-render */
-      if (typeof renderBehaviorTable === 'function') renderBehaviorTable();
-    } else {
-      if (typeof _behClearLoading === 'function') _behClearLoading();
-      loadBehavior(); state.loaded.behavior = true;
-    }
+    if (!state.loaded.behavior) { if (typeof _behClearLoading==='function') _behClearLoading(); loadBehavior(); }
+    else if (typeof renderBehaviorTable==='function') renderBehaviorTable();
   }
-  if (section === 'cbee'  && !state.loaded.cbee)  { loadCBEE();  state.loaded.cbee = true; }
-  if (section === 'gadcf' && !state.loaded.gadcf) { initGADCF(); loadGADCF(); state.loaded.gadcf = true; }
-  if (section === 'fhim'  && !state.loaded.fhim)  { loadFHIM();  state.loaded.fhim = true; }
-  if (section === 'twin'  && !state.loaded.twin)  { loadTwin();  state.loaded.twin = true; }
-  if (section === 'soc'   && !state.loaded.soc)   { loadSOC();   state.loaded.soc = true; }
-  if (section === 'attackers') loadFullAttackers();
+  if (section === 'cbee'   && !state.loaded.cbee)   { loadCBEE();   state.loaded.cbee=true;   }
+  if (section === 'gadcf'  && !state.loaded.gadcf)  { initGADCF();  loadGADCF();  state.loaded.gadcf=true;  }
+  if (section === 'fhim'   && !state.loaded.fhim)   { loadFHIM();   state.loaded.fhim=true;   }
+  if (section === 'twin'   && !state.loaded.twin)   { loadTwin();   state.loaded.twin=true;   }
+  if (section === 'soc'    && !state.loaded.soc)    { loadSOC();    state.loaded.soc=true;    }
+  if (section === 'attackers'   && !state.loaded.attackers)   { loadFullAttackers(); state.loaded.attackers=true;   }
+  if (section === 'environments'&& !state.loaded.environments){ loadFullEnvs();      state.loaded.environments=true;}
+  if (section === 'responses'   && !state.loaded.responses)   { loadResponses();     state.loaded.responses=true;   }
   if (section === 'events') renderEventsPage();
-  if (section === 'environments') loadFullEnvs();
-  if (section === 'responses') loadResponses();
 }
 
 function toggleSidebar() {
