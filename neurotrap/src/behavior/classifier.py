@@ -58,9 +58,16 @@ class SessionFeatureExtractor:
         "netstat", "ss", "lsof", "history",
     }
 
+    @staticmethod
+    def _base_cmd(raw: str) -> str:
+        """Strip path prefix and dots: '/bin/./uname' → 'uname'."""
+        token = raw.split()[0] if raw.strip() else ""
+        return token.split("/")[-1].replace(".", "") if token else ""
+
     def extract(self, session: dict) -> np.ndarray:
         commands: list[str] = session.get("commands", [])
-        cmd_set = {c.split()[0] for c in commands if c.strip()}
+        cmd_set = {self._base_cmd(c) for c in commands if c.strip()}
+        cmd_set.discard("")
 
         dangerous_count = len(cmd_set & self.DANGEROUS_COMMANDS)
         recon_count = len(cmd_set & self.RECON_COMMANDS)

@@ -205,8 +205,22 @@ function initApp() {
   initWebSocket();
   fetchDashboard();
   fetchTopCountries();
+  seedFeedFromApi();
   setInterval(() => { fetchDashboard(); fetchTopCountries(); }, 15000);
   _preloadAll();
+}
+
+async function seedFeedFromApi() {
+  try {
+    const data = await fetch('/api/events?limit=200').then(r => r.json());
+    const events = (data.events || []).reverse(); // oldest first so unshift puts newest on top
+    events.forEach(e => {
+      state.feedItems.unshift(e);
+      _feedRateBuf.push(Date.now()); // don't count historical as rate — just seed
+    });
+    _feedRateBuf = []; // clear — these are historical, not live rate
+    renderMainFeed();
+  } catch (_) {}
 }
 
 function _preloadAll() {
@@ -229,23 +243,26 @@ function _preloadAll() {
 function _renderTopCountries(d) {
   const el = document.getElementById('dash-top-countries');
   if (!el) return;
-  const countries = (d.top_countries || []).slice(0, 10);
+  const countries = d.top_countries || [];
   if (!countries.length) {
     el.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-globe" style="font-size:22px;color:var(--border2)"></i>No attacker data yet</div>';
     return;
   }
   const max = countries[0].count || 1;
   const RANK_COLORS = ['#f43f5e','#f59e0b','#a855f7','#6366f1','#22d3ee','#10b981','#3b82f6','#ec4899','#14b8a6','#8b5cf6'];
+  el.style.maxHeight = '420px';
+  el.style.overflowY = 'auto';
   el.innerHTML = countries.map((c, i) => {
-    const pct = Math.round((c.count / max) * 100);
-    const color = RANK_COLORS[i] || '#22d3ee';
+    const pct   = Math.round((c.count / max) * 100);
+    const color = RANK_COLORS[i] || '#475569';
+    const ips   = c.ip_count ? ` <span style="color:var(--text-muted);font-size:10px">${c.ip_count}IP</span>` : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-dim)">
       <span style="color:${color};font-weight:700;font-size:11px;width:18px;text-align:right">${i + 1}</span>
-      <span style="flex:1;color:var(--text-primary);font-size:12px">${c.country}</span>
+      <span style="flex:1;color:var(--text-primary);font-size:12px">${c.country}${ips}</span>
       <div style="width:70px;height:5px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">
         <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
       </div>
-      <span style="color:var(--text-muted);font-size:11px;width:28px;text-align:right">${c.count}</span>
+      <span style="color:${color};font-size:11px;font-weight:600;width:42px;text-align:right">${c.count.toLocaleString()}</span>
     </div>`;
   }).join('');
 }
@@ -648,9 +665,12 @@ function setWs(c) {
 /* ════════════════════════════════════════
    FEED
 ════════════════════════════════════════ */
-const FEED_PG = 20;
-const EVENTS_PG = 50;
-const TZ_OFFSET_MS = 3 * 3600 * 1000; // UTC+3
+const EVENTS_PG      = 50;
+const FEED_PAGE_SIZE = 20;
+const TZ_OFFSET_MS   = 3 * 3600 * 1000;
+
+let _feedRateBuf = [];
+let _feedNewCount = 0;   // new events that arrived while not on page 0
 
 function fmtTs(ts) {
   if (!ts) return '—';
@@ -667,37 +687,155 @@ function _filteredFeed(typeId, sevId) {
   return state.feedItems.filter(e => (!ft || e.attack_type === ft) && (!fs || e.severity === fs));
 }
 
-function addFeed(e) {
-  state.feedItems.unshift(e);
-  if (state.feedItems.length > 5000) state.feedItems.pop();
-  renderMainFeed();
-  if (document.getElementById('sec-events').classList.contains('active')) renderEventsPage();
+/* ── Live rate counter ── */
+function _tickFeedRate() {
+  const now = Date.now();
+  _feedRateBuf = _feedRateBuf.filter(t => now - t < 60000);
+  const el = document.getElementById('feed-rate');
+  if (!el) return;
+  const n = _feedRateBuf.length;
+  el.textContent = n + '/min';
+  el.style.color = n >= 10 ? '#ef4444' : n >= 3 ? '#f59e0b' : '#475569';
+}
+setInterval(_tickFeedRate, 5000);
+
+/* ── Paging bar for dashboard live feed ── */
+function _renderFeedPaging(p, totalPages, total) {
+  const el = document.getElementById('feed-paging-main');
+  if (!el) return;
+  if (!total) { el.innerHTML = ''; return; }
+  const newBadge = _feedNewCount > 0 && p !== 0
+    ? `<button class="pg-new-badge" onclick="setFeedPage(0)">${_feedNewCount} new ↑</button>` : '';
+  const liveDot = p === 0 ? '<span class="pg-live"><span class="pg-live-dot"></span>LIVE</span>' : '';
+  el.innerHTML = `<div class="feed-paging">
+    <button class="pg-btn" onclick="setFeedPage(${p - 1})" ${p === 0 ? 'disabled' : ''}>&#8249; Prev</button>
+    ${newBadge}${liveDot}
+    <span class="pg-info">Page ${p + 1} / ${totalPages} &nbsp;·&nbsp; ${total} events</span>
+    <button class="pg-btn" onclick="setFeedPage(${p + 1})" ${p >= totalPages - 1 ? 'disabled' : ''}>Next &#8250;</button>
+  </div>`;
 }
 
-function buildFeedItem(e) {
-  const icon = ATTACK_ICONS[e.attack_type] || ATTACK_ICONS.unknown;
-  const sev = e.severity || 'low';
-  const div = document.createElement('div');
-  div.className = `feed-item ${sev}`;
+/* ── Add a new event (called from WebSocket) ── */
+function addFeed(e) {
+  state.feedItems.unshift(e);
+  if (state.feedItems.length > 2000) state.feedItems.pop();
+
+  _feedRateBuf.push(Date.now());
+  _tickFeedRate();
+
+  const ft = document.getElementById('filter-type')?.value || '';
+  const fs = document.getElementById('filter-sev')?.value || '';
+  const passes = (!ft || e.attack_type === ft) && (!fs || e.severity === fs);
+
+  if (passes) {
+    const items = _filteredFeed('filter-type', 'filter-sev');
+    const totalPages = Math.max(1, Math.ceil(items.length / FEED_PAGE_SIZE));
+
+    if (state.feedPage === 0) {
+      const list = document.getElementById('feed-list');
+      if (list) {
+        if (list.firstChild?.classList?.contains('feed-empty')) list.innerHTML = '';
+        const item = buildFeedItem(e, true);
+        list.insertBefore(item, list.firstChild);
+        while (list.children.length > FEED_PAGE_SIZE) list.removeChild(list.lastChild);
+      }
+      _renderFeedPaging(0, totalPages, items.length);
+    } else {
+      _feedNewCount++;
+      _renderFeedPaging(state.feedPage, totalPages, items.length);
+    }
+  }
+
+  if (document.getElementById('sec-events')?.classList.contains('active')) renderEventsPage();
+}
+
+/* ── Build a single feed card ── */
+const SEV_COLOR = { critical:'#ef4444', high:'#f59e0b', medium:'#a855f7', low:'#475569' };
+
+function buildFeedItem(e, isNew = false) {
+  const sev   = e.severity || 'low';
+  const icon  = ATTACK_ICONS[e.attack_type] || 'fa-bolt';
+  const color = SEV_COLOR[sev] || '#475569';
+  const div   = document.createElement('div');
+  div.className = `feed-item ${sev}${isNew ? ' feed-new' : ''}`;
+
+  let detail = '';
+  if (e.username) {
+    const pw = e.password ? `<span class="fi-pw">/ ${e.password}</span>` : '';
+    detail = `<div class="fi-detail"><i class="fa-solid fa-user"></i><span class="fi-cred">${e.username}</span>${pw}</div>`;
+  } else if (e.command) {
+    const cmd = e.command.length > 48 ? e.command.slice(0, 48) + '…' : e.command;
+    detail = `<div class="fi-detail"><i class="fa-solid fa-terminal"></i><code class="fi-cmd">${cmd}</code></div>`;
+  }
+
+  const port = e.dst_port ? `<span class="fi-port">:${e.dst_port}</span>` : '';
+  const src  = `<span class="fi-src">${e.honeypot_source || '?'}</span>`;
+  const type = `<span class="fi-type">${(e.attack_type || 'unknown').replace(/_/g, ' ')}</span>`;
+
   div.innerHTML = `
-    <div class="feed-item-row">
-      <span class="feed-sev ${sev}">${sev.toUpperCase()}</span>
-      <i class="fa-solid ${icon}" style="color:var(--t4);font-size:12px"></i>
-      <span class="feed-ip">${e.src_ip}</span>
-      <span style="color:var(--t4)">&#8594;</span>
-      <span class="feed-type">${(e.attack_type || '').replace(/_/g, ' ')}</span>
-      <span style="color:var(--t4)">:${e.dst_port}</span>
-      <span class="feed-src">[${e.honeypot_source || '?'}]</span>
-    </div>
-    <div class="feed-time">
-      <i class="fa-regular fa-clock"></i>${fmtTs(e.timestamp)} UTC+3
+    <div class="fi-bar" style="background:${color}"></div>
+    <div class="fi-body">
+      <div class="fi-row">
+        <span class="fi-sev" style="color:${color};border-color:${color}40;background:${color}15">${sev.toUpperCase()}</span>
+        <i class="fa-solid ${icon}" style="color:${color};font-size:11px;flex-shrink:0"></i>
+        <span class="fi-ip">${e.src_ip}</span>
+        <span class="fi-arrow">→</span>
+        ${type}${port}
+        <span style="flex:1"></span>
+        ${src}
+        <span class="fi-ago">${timeSince(e.timestamp)}</span>
+      </div>
+      ${detail}
     </div>`;
-  div.onclick = () => openModal(e.src_ip);
+  div.onclick = () => openModal(e.src_ip, e);
+  if (isNew) setTimeout(() => div.classList.remove('feed-new'), 900);
   return div;
 }
 
+/* ── Full re-render of the dashboard live feed ── */
+function renderMainFeed() {
+  const list = document.getElementById('feed-list');
+  if (!list) return;
+  const items = _filteredFeed('filter-type', 'filter-sev');
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / FEED_PAGE_SIZE));
+  state.feedPage = Math.max(0, Math.min(state.feedPage, totalPages - 1));
+
+  if (!total) {
+    list.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-satellite-dish" style="font-size:28px;color:var(--border2);margin-bottom:6px"></i>No events yet</div>';
+    _renderFeedPaging(0, 0, 0);
+    return;
+  }
+
+  list.innerHTML = '';
+  const p = state.feedPage;
+  items.slice(p * FEED_PAGE_SIZE, (p + 1) * FEED_PAGE_SIZE).forEach(e => list.appendChild(buildFeedItem(e)));
+  list.scrollTop = 0;
+  _renderFeedPaging(p, totalPages, total);
+}
+
+function setFeedPage(p) {
+  const items = _filteredFeed('filter-type', 'filter-sev');
+  const totalPages = Math.max(1, Math.ceil(items.length / FEED_PAGE_SIZE));
+  state.feedPage = Math.max(0, Math.min(p, totalPages - 1));
+  if (state.feedPage === 0) _feedNewCount = 0;
+  renderMainFeed();
+}
+
+function applyFilter() { state.feedPage = 0; _feedNewCount = 0; renderMainFeed(); }
+function clearFeed() {
+  state.feedItems = [];
+  _feedRateBuf = []; _feedNewCount = 0; state.feedPage = 0;
+  const list = document.getElementById('feed-list');
+  if (list) list.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-broom" style="font-size:24px;color:var(--border2)"></i>Cleared</div>';
+  const paging = document.getElementById('feed-paging-main');
+  if (paging) paging.innerHTML = '';
+  _tickFeedRate();
+}
+
+/* ── Generic paginated renderer (Events page) ── */
 function _renderFeed(listId, pagingId, items, page, pageSize, pageFn) {
-  const list = document.getElementById(listId);
+  const list   = document.getElementById(listId);
   const paging = document.getElementById(pagingId);
   if (!items.length) {
     list.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-satellite-dish" style="font-size:24px;color:var(--border2)"></i>No events</div>';
@@ -706,33 +844,15 @@ function _renderFeed(listId, pagingId, items, page, pageSize, pageFn) {
   }
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   page = Math.max(0, Math.min(page, totalPages - 1));
-  const slice = items.slice(page * pageSize, (page + 1) * pageSize);
   list.innerHTML = '';
-  slice.forEach(e => list.appendChild(buildFeedItem(e)));
+  items.slice(page * pageSize, (page + 1) * pageSize).forEach(e => list.appendChild(buildFeedItem(e)));
   if (paging) {
-    paging.innerHTML = `
-      <div class="feed-paging">
-        <button class="pg-btn" onclick="${pageFn}(${page - 1})" ${page === 0 ? 'disabled' : ''}>&#8249; Prev</button>
-        <span class="pg-info">Page ${page + 1} / ${totalPages} &nbsp;&middot;&nbsp; ${items.length} events</span>
-        <button class="pg-btn" onclick="${pageFn}(${page + 1})" ${page >= totalPages - 1 ? 'disabled' : ''}>Next &#8250;</button>
-      </div>`;
+    paging.innerHTML = `<div class="feed-paging">
+      <button class="pg-btn" onclick="${pageFn}(${page-1})" ${page===0?'disabled':''}>&#8249; Prev</button>
+      <span class="pg-info">Page ${page+1} / ${totalPages} &nbsp;·&nbsp; ${items.length} events</span>
+      <button class="pg-btn" onclick="${pageFn}(${page+1})" ${page>=totalPages-1?'disabled':''}>Next &#8250;</button>
+    </div>`;
   }
-}
-
-function renderMainFeed() {
-  const items = _filteredFeed('filter-type', 'filter-sev');
-  _renderFeed('feed-list', 'feed-paging', items, state.feedPage, FEED_PG, 'setFeedPage');
-}
-function setFeedPage(p) {
-  const total = Math.max(1, Math.ceil(_filteredFeed('filter-type', 'filter-sev').length / FEED_PG));
-  state.feedPage = Math.max(0, Math.min(p, total - 1));
-  renderMainFeed();
-}
-function applyFilter() { state.feedPage = 0; renderMainFeed(); }
-function clearFeed() {
-  state.feedItems = []; state.feedPage = 0;
-  document.getElementById('feed-list').innerHTML = '<div class="feed-empty"><i class="fa-solid fa-broom" style="font-size:24px;color:var(--border2)"></i>Cleared</div>';
-  document.getElementById('feed-paging').innerHTML = '';
 }
 
 function renderEventsPage() {
@@ -789,10 +909,13 @@ async function fetchAttackers() {
 }
 async function fetchEnvs() {
   await Promise.allSettled([
-    _sfetch('/api/environments', ed => renderEnvCards('env-cards', ed.environments || [])),
+    _sfetch('/api/environments', ed => {
+      renderEnvCards('env-cards', ed.environments || []);
+      setText('kpi-envs', fmtNum(ed.total || (ed.environments || []).length));
+    }),
     _sfetch('/api/honeypots', hd => {
       const n = (hd.sensors || []).filter(s => s.status === 'online').length;
-      setText('kpi-envs', fmtNum(n));
+      setText('kpi-sensors', fmtNum(n));
     }),
   ]);
 }
@@ -821,16 +944,20 @@ function renderAttackerTable(tbodyId, attackers, countId) {
 
 function renderEnvCards(containerId, envs) {
   const c = document.getElementById(containerId);
-  if (!envs.length) { c.innerHTML = '<div style="color:var(--t4);font-size:12px;grid-column:1/-1"><i class="fa-solid fa-server" style="margin-right:6px"></i>No active environments</div>'; return; }
+  if (!envs.length) { c.innerHTML = '<div style="color:var(--t4);font-size:12px;grid-column:1/-1"><i class="fa-solid fa-server" style="margin-right:6px"></i>No environments deployed yet</div>'; return; }
   c.innerHTML = '';
   envs.forEach(e => {
-    const age = Math.floor((Date.now()/1000-e.created_at)/60);
+    const isActive = e.is_active;
+    const age = Math.floor((Date.now()/1000 - (e.created_at||0)) / 60);
+    const statusColor = isActive ? '#10b981' : '#475569';
+    const statusLabel = isActive ? 'Live' : 'Completed';
     const card = document.createElement('div');
     card.className = 'env-card';
-    card.innerHTML = `<div class="env-card-top"><span class="env-ip">${e.src_ip}</span><span class="env-tier">${(e.attacker_tier||'').replace(/_/g,' ')}</span></div>
+    card.style.opacity = isActive ? '1' : '0.72';
+    card.innerHTML = `<div class="env-card-top"><span class="env-ip">${e.src_ip}</span><span style="font-size:9px;padding:2px 7px;border-radius:10px;background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}44;font-weight:700">${statusLabel}</span></div>
       <div class="env-host"><i class="fa-solid fa-server" style="margin-right:5px;color:var(--t4)"></i>${e.hostname||'—'}</div>
       <div class="env-services">${(e.services||[]).map(s=>`<span class="env-svc">${s}</span>`).join('')}</div>
-      <div class="env-footer"><i class="fa-regular fa-clock"></i> ${age}m active · <i class="fa-solid fa-bolt"></i> ${(e.engagement_log||[]).length} interactions</div>`;
+      <div class="env-footer"><i class="fa-regular fa-clock"></i> ${age}m ago · <i class="fa-solid fa-bolt"></i> ${(e.engagement_log||[]).length} interactions</div>`;
     c.appendChild(card);
   });
 }
@@ -948,47 +1075,58 @@ async function loadResponses() {
 /* ════════════════════════════════════════
    MODAL
 ════════════════════════════════════════ */
-async function openModal(ip) {
+// Maps event severity label → representative score for IPs not yet profiled
+const SEV_SCORE = { critical: 88, high: 68, medium: 45, low: 18 };
+
+async function openModal(ip, sourceEvent = null) {
   state.selectedIP = ip;
   setText('modal-ip', ip);
   ['modal-intent','modal-tier','modal-sessions','modal-first','modal-last'].forEach(id=>setText(id,'…'));
   setText('modal-score-val','…');
   document.getElementById('modal-ttps').innerHTML = '<span style="color:var(--t4);font-size:11px">Loading…</span>';
   document.getElementById('profile-modal').classList.remove('hidden');
-  let p;
+
+  let p = null;
+  let hasProfile = false;
   try {
     const r = await fetch('/api/attackers/'+ip);
-    if (r.status === 404) {
-      // IP seen in events but not yet profiled by the behavior engine
-      p = { classified_intent:'unknown', attacker_tier:'unknown', session_count:0, total_commands:0, threat_score:0, ttps:[] };
-    } else if (!r.ok) {
-      throw new Error(r.status);
-    } else {
-      p = await r.json();
-    }
-  } catch {
-    // Genuine network/server failure — show neutral fallback, not fake high-score demo data
-    p = { classified_intent:'unknown', attacker_tier:'unknown', session_count:0, total_commands:0, threat_score:0, ttps:[] };
+    if (r.ok) { p = await r.json(); hasProfile = true; }
+  } catch { /* fall through to event-based fallback */ }
+
+  if (!hasProfile) {
+    // No attacker profile yet — derive score from the event's severity so the
+    // modal stays consistent with the severity badge the user just clicked.
+    const sev = sourceEvent?.severity || 'low';
+    p = {
+      classified_intent: sourceEvent?.attack_type || 'unknown',
+      attacker_tier: 'unknown',
+      session_count: 0,
+      total_commands: 0,
+      threat_score: SEV_SCORE[sev] ?? SEV_SCORE.low,
+      ttps: [],
+    };
   }
+
+  // Score source label so users understand event score vs cumulative profile score
+  const scoreLabel = document.getElementById('modal-score-label');
+  if (scoreLabel) {
+    scoreLabel.textContent = hasProfile ? 'profile score' : 'event severity score';
+    scoreLabel.style.color = hasProfile ? 'var(--t3)' : '#f59e0b';
+  }
+
   setText('modal-intent',(p.classified_intent||'—').replace(/_/g,' '));
   setText('modal-tier',(p.attacker_tier||'—').replace(/_/g,' '));
-  if (p._synthesized) {
-    setText('modal-sessions', `${p.event_count||0} events · behavior engine pending`);
-  } else {
-    setText('modal-sessions',`${p.session_count||0} sessions · ${p.total_commands||0} cmds`);
-  }
-  setText('modal-first', fmtTs(p.first_seen) + (p.first_seen ? ' UTC+3' : ''));
-  setText('modal-last',  fmtTs(p.last_seen)  + (p.last_seen  ? ' UTC+3' : ''));
+  setText('modal-sessions', hasProfile
+    ? `${p.session_count||0} sessions · ${p.total_commands||0} cmds`
+    : 'Not yet profiled by behavior engine');
+  setText('modal-first', hasProfile && p.first_seen ? fmtTs(p.first_seen)+' UTC+3' : '—');
+  setText('modal-last',  hasProfile && p.last_seen  ? fmtTs(p.last_seen) +' UTC+3' : '—');
   setText('modal-score-val',(p.threat_score||0).toFixed(0));
   const g = document.getElementById('modal-ttps');
   const ttps = p.ttps||[];
-  if (ttps.length) {
-    g.innerHTML = ttps.slice(0,16).map(t=>`<span class="ttp-chip" title="${t.technique_name||''}">${t.technique_id}</span>`).join('');
-  } else if (p._synthesized && (p.attack_types_seen||[]).length) {
-    g.innerHTML = p.attack_types_seen.map(t=>`<span class="ttp-chip">${t.replace(/_/g,' ')}</span>`).join('');
-  } else {
-    g.innerHTML = '<span style="color:var(--t4);font-size:11px">No TTPs detected</span>';
-  }
+  g.innerHTML = ttps.length
+    ? ttps.slice(0,16).map(t=>`<span class="ttp-chip" title="${t.technique_name||''}">${t.technique_id}</span>`).join('')
+    : '<span style="color:var(--t4);font-size:11px">No TTPs detected</span>';
   drawGauge('modal-gauge', p.threat_score||0, 180, 100);
 }
 function handleModalBg(e) { if (e.target === document.getElementById('profile-modal')) closeModal(); }

@@ -149,7 +149,7 @@
         </div>
         <div class="kpi-card" style="--kc:#a855f7">
           <div class="kpi-icon"><i class="fa-solid fa-spider"></i></div>
-          <div><div class="kpi-val" id="kpi-envs" style="color:#a855f7">0</div><div class="kpi-lbl">Active Honeypots</div></div>
+          <div><div class="kpi-val" id="kpi-envs" style="color:#a855f7">0</div><div class="kpi-lbl">Environments Deployed</div></div>
         </div>
         <div class="kpi-card" style="--kc:#f59e0b">
           <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
@@ -163,30 +163,31 @@
           <div class="card-head">
             <i class="fa-solid fa-terminal" style="color:#22d3ee"></i>
             Live Feed
+            <span id="feed-rate" style="font-family:var(--mono);font-size:10px;color:#475569;margin-left:6px">—/min</span>
             <div class="live-badge"><div class="live-dot"></div>LIVE</div>
           </div>
           <div class="feed-filters">
             <select id="filter-type" onchange="applyFilter()">
               <option value="">All types</option>
-              <option value="port_scan">Port scan</option>
               <option value="brute_force">Brute force</option>
+              <option value="command_injection">Command exec</option>
+              <option value="tool_fingerprint">Fingerprint</option>
+              <option value="protocol_anomaly">Protocol anomaly</option>
+              <option value="lateral_movement">Lateral movement</option>
               <option value="malware_upload">Malware</option>
-              <option value="command_injection">Cmd exec</option>
-              <option value="lateral_movement">Lateral</option>
+              <option value="port_scan">Port scan</option>
             </select>
             <select id="filter-sev" onchange="applyFilter()">
-              <option value="">All</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
+              <option value="">All severity</option>
+              <option value="critical">🔴 Critical</option>
+              <option value="high">🟠 High</option>
+              <option value="medium">🟣 Medium</option>
+              <option value="low">⚫ Low</option>
             </select>
-            <button onclick="clearFeed()" class="btn btn-sm btn-secondary"><i class="fa-solid fa-trash-can"></i></button>
+            <button onclick="clearFeed()" class="btn btn-sm btn-secondary" title="Clear feed"><i class="fa-solid fa-trash-can"></i></button>
           </div>
-          <div class="feed-list" id="feed-list" style="height:420px;overflow-y:auto">
-            <div class="feed-empty"><i class="fa-solid fa-satellite-dish" style="font-size:24px;color:var(--border2)"></i>Waiting for events…</div>
-          </div>
-          <div id="feed-paging"></div>
+          <div class="feed-list" id="feed-list" style="height:390px;overflow-y:auto"></div>
+          <div id="feed-paging-main"></div>
         </div>
 
         <div class="card" style="display:flex;flex-direction:column">
@@ -1006,7 +1007,7 @@
       <div class="gauge-row">
         <div class="gauge-wrap">
           <canvas id="modal-gauge" width="180" height="100"></canvas>
-          <div class="gauge-overlay"><div class="gauge-val" id="modal-score-val">0</div><div class="gauge-sub">/ 100</div></div>
+          <div class="gauge-overlay"><div class="gauge-val" id="modal-score-val">0</div><div class="gauge-sub">/ 100</div><div id="modal-score-label" style="font-size:9px;color:var(--t3);margin-top:2px;letter-spacing:.04em">profile score</div></div>
         </div>
         <div class="meta-grid">
           <div class="meta-row"><span class="meta-label">Intent</span><span class="meta-value" id="modal-intent">—</span></div>

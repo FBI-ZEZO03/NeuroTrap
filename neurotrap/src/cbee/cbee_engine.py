@@ -27,8 +27,8 @@ class CBEEEngine:
         engine.start()
     """
 
-    RESCORE_INTERVAL   = 30    # re-score active sessions every N seconds
-    MIN_SCORE_TO_INJECT = 25   # minimum bias score to trigger injection
+    RESCORE_INTERVAL    = 30   # re-score active sessions every N seconds
+    MIN_SCORE_TO_INJECT = 15   # minimum bias score to trigger injection
     MAX_INJECTIONS_PER_IP = 3  # cap injections per attacker to avoid overload
 
     def __init__(self, db, on_inject: Optional[Callable[[BaitInjection], None]] = None):
@@ -76,26 +76,50 @@ class CBEEEngine:
             time.sleep(self.RESCORE_INTERVAL)
 
     def _process_active_sessions(self):
+        # Build injected-count map from DB so restarts don't re-inject
         try:
-            sessions = list(self.db["cowrie_sessions"].find(
-                {"analyzed": True},
-                {"src_ip": 1, "commands": 1, "duration_secs": 1,
-                 "login_attempts": 1, "classified_intent": 1},
-                limit=30,
-            ))
+            injected_counts: dict = {}
+            for doc in self.db["cbee_injections"].aggregate([
+                {"$group": {"_id": "$src_ip", "count": {"$sum": 1}}}
+            ]):
+                injected_counts[doc["_id"]] = doc["count"]
+        except Exception:
+            injected_counts = {}
+
+        # Process from attacker_profiles — richer than individual cowrie sessions
+        try:
+            attacker_profiles = list(self.db["attacker_profiles"].find(
+                {"threat_score": {"$gte": 30}},
+                {"src_ip": 1, "sessions": 1, "session_count": 1,
+                 "classified_intent": 1, "attacker_tier": 1, "threat_score": 1},
+            ).sort("threat_score", -1).limit(50))
         except Exception:
             return
 
-        for s in sessions:
-            ip = s.get("src_ip", "?")
-            profile = self.scorer.score(s)
-            self._profiles[ip] = profile
-            self._persist_profile(ip, profile)
+        for ap in attacker_profiles:
+            ip = ap.get("src_ip", "?")
 
-            if (profile.overall >= self.MIN_SCORE_TO_INJECT and
-                    self._injected.get(ip, 0) < self.MAX_INJECTIONS_PER_IP):
+            if injected_counts.get(ip, 0) >= self.MAX_INJECTIONS_PER_IP:
+                continue
 
-                # Find the active environment for this IP
+            # Aggregate all stored commands across sessions into one synthetic session
+            all_cmds: list[str] = []
+            for s in ap.get("sessions", []):
+                all_cmds.extend(s.get("commands", []))
+
+            synthetic = {
+                "src_ip": ip,
+                "commands": all_cmds,
+                "duration_secs": ap.get("session_count", 1) * 30,
+                "login_attempts": ap.get("session_count", 1),
+                "classified_intent": ap.get("classified_intent", "reconnaissance"),
+            }
+
+            bias = self.scorer.score(synthetic)
+            self._profiles[ip] = bias
+            self._persist_profile(ip, bias)
+
+            if bias.overall >= self.MIN_SCORE_TO_INJECT:
                 try:
                     env = self.db["deception_environments"].find_one(
                         {"src_ip": ip, "is_active": True}, {"env_id": 1}
@@ -104,10 +128,10 @@ class CBEEEngine:
                     env = None
 
                 env_id = env["env_id"] if env else "unknown"
-                injection = self.injector.generate(profile, env_id=env_id, src_ip=ip)
+                injection = self.injector.generate(bias, env_id=env_id, src_ip=ip)
 
                 self._persist_injection(injection)
-                self._injected[ip] = self._injected.get(ip, 0) + 1
+                injected_counts[ip] = injected_counts.get(ip, 0) + 1
 
                 if self.on_inject:
                     try:
@@ -117,7 +141,7 @@ class CBEEEngine:
 
                 logger.info(
                     "CBEE bait injected → %s | bias=%s | score=%.1f | assets=%d",
-                    ip, profile.dominant, profile.overall, len(injection.assets)
+                    ip, bias.dominant, bias.overall, len(injection.assets)
                 )
 
     def _persist_profile(self, ip: str, profile: BiasProfile):

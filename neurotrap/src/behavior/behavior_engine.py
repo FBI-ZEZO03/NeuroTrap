@@ -108,17 +108,46 @@ class BehaviorEngine:
     def _rule_based_classify(session: dict) -> tuple[str, str, float]:
         commands = session.get("commands", [])
         cmd_str = " ".join(commands).lower()
+        login_attempts = int(session.get("login_attempts", 0))
+        failed_logins = int(session.get("failed_logins", 0))
+        duration = float(session.get("duration_secs", 0))
 
-        if any(t in cmd_str for t in ["xmrig", "minerd", "cryptonight"]):
-            return "cryptomining", "automated_bot", 0.9
-        if any(t in cmd_str for t in ["wget", "curl", "tftp"]) and any(
-            t in cmd_str for t in ["chmod", "bash", ".sh"]
-        ):
-            return "malware_deployment", "advanced_human", 0.8
-        if "cat /etc/shadow" in cmd_str or "cat /etc/passwd" in cmd_str:
-            return "credential_harvesting", "advanced_human", 0.85
-        if any(t in cmd_str for t in ["ssh ", "scp ", "lateral"]):
-            return "lateral_movement", "advanced_human", 0.75
-        if len(commands) < 5:
-            return "reconnaissance", "beginner", 0.6
-        return "reconnaissance", "automated_bot", 0.5
+        if any(t in cmd_str for t in ["xmrig", "minerd", "cryptonight", "stratum+tcp", "pool.mining"]):
+            return "cryptomining", "automated_bot", 0.92
+
+        has_download = any(t in cmd_str for t in ["wget ", "curl ", "tftp "])
+        has_execute = any(t in cmd_str for t in ["chmod +x", "bash ", "sh ", ".sh"])
+        if has_download and has_execute:
+            return "malware_deployment", "advanced_human", 0.85
+
+        if "cat /etc/shadow" in cmd_str or "/etc/shadow" in cmd_str:
+            return "credential_harvesting", "advanced_human", 0.88
+
+        if any(t in cmd_str for t in ["crontab", ".bashrc", ".bash_profile", "systemctl enable"]):
+            return "bot_enrollment", "automated_bot", 0.80
+
+        if any(t in cmd_str for t in ["ssh ", "scp ", "rsync "]) and len(commands) > 3:
+            return "lateral_movement", "advanced_human", 0.78
+
+        # Brute-force credential attack: many logins, no commands
+        if login_attempts >= 10 and len(commands) == 0:
+            return "credential_harvesting", "automated_bot", 0.75
+
+        # High-speed automated scanner (many attempts, short duration)
+        if login_attempts >= 5 and duration < 15:
+            return "credential_harvesting", "automated_bot", 0.68
+
+        # Fingerprinting bot: quick session with system-info commands only
+        fingerprint = {"uname", "id", "whoami", "hostname"}
+        base_cmds = set()
+        for c in commands:
+            token = c.split()[0] if c.strip() else ""
+            base = token.split("/")[-1].replace(".", "")
+            if base:
+                base_cmds.add(base)
+        if base_cmds and base_cmds.issubset(fingerprint | {"ls", "pwd", "env", "cat"}):
+            return "bot_enrollment", "automated_bot", 0.72
+
+        if len(commands) == 0:
+            return "reconnaissance", "beginner", 0.55
+        return "reconnaissance", "beginner", 0.60

@@ -207,6 +207,15 @@ function renderAttackVectors(byType) {
 
 /* ── Top Commands ────────────────────────────────────────────────────────── */
 
+function _normCmd(raw) {
+  // Strip path prefix: '/bin/./uname -a' → 'uname -a'
+  const s = raw.trim();
+  const sp = s.indexOf(' ');
+  const token = sp === -1 ? s : s.slice(0, sp);
+  const base = token.split('/').pop().replace(/^\.+/, '');
+  return base + (sp === -1 ? '' : s.slice(sp));
+}
+
 function renderTopCommands(attackers) {
   const el = document.getElementById('beh-top-commands');
   if (!el) return;
@@ -216,7 +225,7 @@ function renderTopCommands(attackers) {
   attackers.forEach(a => {
     (a.sessions || []).forEach(sess => {
       (sess.commands || []).forEach(cmd => {
-        const c = cmd.trim();
+        const c = _normCmd(cmd);
         if (!c) return;
         freq[c] = (freq[c] || 0) + 1;
         if (!cmdToIPs[c]) cmdToIPs[c] = new Set();

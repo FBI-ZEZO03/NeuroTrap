@@ -159,7 +159,7 @@ class PacketMonitor:
             self._emit(AlertEvent(
                 src_ip=src_ip,
                 dst_port=dst_port,
-                attack_type="unknown",
+                attack_type="protocol_anomaly",
                 severity="low",
                 honeypot_source="scapy",
                 protocol="udp",

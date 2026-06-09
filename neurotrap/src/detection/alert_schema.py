@@ -53,17 +53,43 @@ class AlertEvent:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    # Cowrie event IDs that are internal session metadata — don't create alert events.
+    _COWRIE_SKIP = frozenset({
+        "cowrie.session.closed",
+        "cowrie.log.closed",
+        "cowrie.session.params",
+    })
+
     @classmethod
-    def from_cowrie(cls, raw: dict) -> "AlertEvent":
-        """Parse a Cowrie JSON log entry into an AlertEvent."""
-        event_id_map = {
-            "cowrie.login.failed": ("brute_force", "low"),
-            "cowrie.login.success": ("brute_force", "high"),
-            "cowrie.command.input": ("command_injection", "medium"),
-            "cowrie.session.file_download": ("malware_upload", "high"),
-            "cowrie.session.connect": ("tool_fingerprint", "low"),
-        }
+    def from_cowrie(cls, raw: dict) -> "AlertEvent | None":
+        """Parse a Cowrie JSON log entry into an AlertEvent, or None for metadata events."""
         cowrie_id = raw.get("eventid", "")
+
+        if cowrie_id in cls._COWRIE_SKIP:
+            return None
+
+        event_id_map = {
+            # Authentication
+            "cowrie.login.failed":           ("brute_force",      "low"),
+            "cowrie.login.success":          ("brute_force",      "high"),
+            # Commands
+            "cowrie.command.input":          ("command_injection", "medium"),
+            "cowrie.command.failed":         ("command_injection", "low"),
+            # File activity
+            "cowrie.session.file_download":  ("malware_upload",   "high"),
+            "cowrie.session.file_upload":    ("malware_upload",   "high"),
+            # SSH negotiation / tool fingerprinting
+            "cowrie.session.connect":        ("tool_fingerprint", "low"),
+            "cowrie.client.version":         ("tool_fingerprint", "low"),
+            "cowrie.client.kex":             ("tool_fingerprint", "low"),
+            "cowrie.client.var":             ("tool_fingerprint", "low"),
+            "cowrie.client.fingerprint":     ("tool_fingerprint", "low"),
+            "cowrie.direct-tcpip.ja4":       ("tool_fingerprint", "low"),
+            "cowrie.direct-tcpip.ja4h":      ("tool_fingerprint", "low"),
+            # TCP port-forwarding (tunneling / lateral movement)
+            "cowrie.direct-tcpip.request":   ("lateral_movement", "medium"),
+            "cowrie.direct-tcpip.data":      ("lateral_movement", "medium"),
+        }
         attack_type, severity = event_id_map.get(cowrie_id, ("unknown", "low"))
 
         return cls(

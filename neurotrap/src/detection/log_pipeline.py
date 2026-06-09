@@ -164,7 +164,8 @@ class LogIngestionPipeline:
 
     def _handle_cowrie(self, raw: dict):
         event = AlertEvent.from_cowrie(raw)
-        self.ingest(event)
+        if event is not None:
+            self.ingest(event)
         if self._session_builder:
             self._session_builder.handle(raw)
 

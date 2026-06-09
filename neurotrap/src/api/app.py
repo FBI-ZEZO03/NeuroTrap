@@ -310,7 +310,9 @@ def get_stats():
         active_sessions = len(list(recent_ips))
     except Exception:
         active_sessions = 0
-    blocked_ips = db["response_log"].count_documents({"action": "block_emergency"})
+    blocked_ips = db["response_log"].count_documents(
+        {"action": {"$in": ["block_emergency", "isolate_alert"]}}
+    )
 
     return jsonify({
         "total_events": total_events,
@@ -474,9 +476,11 @@ def get_environments():
     if db is None:
         return jsonify({"environments": []})
     cursor = db["deception_environments"].find(
-        {"is_active": True}, {"_id": 0}
+        {}, {"_id": 0}
     ).sort("created_at", -1).limit(50)
-    return jsonify({"environments": list(cursor)})
+    envs = list(cursor)
+    active_count = sum(1 for e in envs if e.get("is_active"))
+    return jsonify({"environments": envs, "active_count": active_count, "total": len(envs)})
 
 
 # ── Honeypots API ──────────────────────────────────────────────────────────────
@@ -588,7 +592,9 @@ def _get_cbee():
         if db is None:
             return None
         if not hasattr(_get_cbee, "_instance"):
-            _get_cbee._instance = CBEEEngine(db)
+            engine = CBEEEngine(db)
+            engine.start()
+            _get_cbee._instance = engine
         return _get_cbee._instance
     except Exception:
         return None
@@ -983,7 +989,7 @@ def get_threat_intel():
     # IOC list — top attacker IPs by threat score
     iocs = []
     try:
-        profiles = list(db["attacker_profiles"].find({}, {"_id": 0}).sort("threat_score", -1).limit(50))
+        profiles = list(db["attacker_profiles"].find({}, {"_id": 0}).sort("threat_score", -1).limit(200))
 
         # Resolve countries for any IP that still has none
         unresolved = [p["src_ip"] for p in profiles if not p.get("country")]
@@ -1010,15 +1016,51 @@ def get_threat_intel():
     except Exception:
         pass
 
-    # Top countries
-    country_counts: dict = {}
-    for ioc in iocs:
-        c = ioc["country"] or "Unknown"
-        country_counts[c] = country_counts.get(c, 0) + 1
-    top_countries = sorted(
-        [{"country": k, "count": v} for k, v in country_counts.items()],
-        key=lambda x: x["count"], reverse=True
-    )[:15]
+    # Top countries — counted by total events per country (not just unique IPs),
+    # so the numbers are consistent with the total-events metric on the dashboard.
+    try:
+        # Build IP → country map from every profile (no limit)
+        ip_country: dict = {}
+        for p in db["attacker_profiles"].find({}, {"src_ip": 1, "country": 1, "_id": 0}):
+            if p.get("src_ip") and p.get("country") and p["country"] not in ("Unknown", "", None):
+                ip_country[p["src_ip"]] = p["country"]
+
+        # Count events per IP
+        event_by_ip: dict = {}
+        for doc in db["alert_events"].aggregate([
+            {"$group": {"_id": "$src_ip", "count": {"$sum": 1}}}
+        ]):
+            if doc["_id"]:
+                event_by_ip[doc["_id"]] = doc["count"]
+
+        # Aggregate into country buckets
+        country_events: dict = {}
+        country_ips: dict = {}
+        for ip, ev_count in event_by_ip.items():
+            country = ip_country.get(ip)
+            if not country:
+                continue
+            country_events[country] = country_events.get(country, 0) + ev_count
+            country_ips[country] = country_ips.get(country, 0) + 1
+
+        top_countries = sorted(
+            [
+                {"country": k, "count": v, "ip_count": country_ips.get(k, 0)}
+                for k, v in country_events.items()
+            ],
+            key=lambda x: x["count"], reverse=True,
+        )
+    except Exception:
+        # Fallback: unique-IP count from IOC list
+        country_counts: dict = {}
+        for ioc in iocs:
+            c = ioc["country"] or "Unknown"
+            if c and c != "Unknown":
+                country_counts[c] = country_counts.get(c, 0) + 1
+        top_countries = sorted(
+            [{"country": k, "count": v, "ip_count": v} for k, v in country_counts.items()],
+            key=lambda x: x["count"], reverse=True,
+        )
 
     # Top targeted ports
     top_ports = []
@@ -1076,7 +1118,7 @@ def get_threat_intel():
         "campaigns": campaigns,
         "summary": {
             "total_iocs": len(iocs),
-            "countries_seen": len(country_counts),
+            "countries_seen": len(top_countries),
             "active_campaigns": len(campaigns),
             "top_threat": top_threat,
         },

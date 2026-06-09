@@ -65,12 +65,135 @@ class AttackerProfile:
         })
 
     def _compute_threat_score(self, confidence: float, ttp_score: float, tier: str) -> float:
-        tier_bonus = {"beginner": 0, "automated_bot": 10, "advanced_human": 25}
+        tier_bonus = {"beginner": 0, "automated_bot": 15, "advanced_human": 30}
         base = (confidence * 40) + ttp_score + tier_bonus.get(tier, 0)
-        # Penalize if only recon detected (likely scanner)
-        if self.classified_intent == "reconnaissance" and self.session_count < 3:
-            base *= 0.6
+
+        # Persistence: tiered by session count. Any return visit to a honeypot
+        # is a strong signal — scale aggressively for repeat attackers.
+        n = self.session_count
+        if n >= 100:
+            persistence_bonus = 65
+        elif n >= 50:
+            persistence_bonus = 60
+        elif n >= 20:
+            persistence_bonus = 50
+        elif n >= 10:
+            persistence_bonus = 40
+        elif n >= 5:
+            persistence_bonus = 28
+        elif n >= 3:
+            persistence_bonus = 22
+        elif n >= 2:
+            persistence_bonus = 18
+        else:
+            persistence_bonus = 5
+
+        # Volume: deeper engagement signal, +1 per 5 cmds, capped at +15
+        volume_bonus = min(self.total_commands // 5, 15)
+
+        base += persistence_bonus + volume_bonus
         return min(round(base, 1), 100.0)
+
+    # Intent → rough confidence estimate used when recalculating from stored data
+    _INTENT_CONFIDENCE = {
+        "malware_deployment": 0.82, "lateral_movement": 0.75,
+        "credential_harvesting": 0.80, "cryptomining": 0.88,
+        "bot_enrollment": 0.72, "reconnaissance": 0.55, "unknown": 0.45,
+    }
+
+    # Tactic → score weight (mirrors TTPExtractor.threat_score_contribution)
+    _TACTIC_WEIGHTS = {
+        "Impact": 40, "Privilege Escalation": 35, "Credential Access": 30,
+        "Lateral Movement": 25, "Persistence": 20, "Command and Control": 15,
+        "Defense Evasion": 10, "Discovery": 5,
+    }
+
+    def reclassify_intent(self) -> tuple[str, str]:
+        """Infer intent and tier from all stored session commands and behavior patterns."""
+        all_cmds: list[str] = []
+        for s in self.sessions:
+            all_cmds.extend(s.get("commands", []))
+
+        cmd_str = " ".join(all_cmds).lower()
+
+        # Extract base command names (strip full paths like /bin/./uname → uname)
+        base_cmds: set[str] = set()
+        for c in all_cmds:
+            token = c.split()[0] if c.strip() else ""
+            base = token.split("/")[-1].replace(".", "")
+            if base:
+                base_cmds.add(base)
+
+        if any(t in cmd_str for t in ["xmrig", "minerd", "cryptonight", "stratum+tcp"]):
+            return "cryptomining", "automated_bot"
+
+        # Checking for running miners = cryptomining-related behavior
+        if "grep" in cmd_str and any(t in cmd_str for t in ["miner", "xmrig", "monero"]):
+            return "cryptomining", "automated_bot"
+
+        has_download = any(t in cmd_str for t in ["wget ", "curl ", "tftp "])
+        has_execute = any(t in cmd_str for t in ["chmod +x", "bash ", "sh ", ".sh"])
+        if has_download and has_execute:
+            return "malware_deployment", "advanced_human"
+
+        if "/etc/shadow" in cmd_str or "cat /etc/passwd" in cmd_str:
+            return "credential_harvesting", "advanced_human"
+
+        if any(t in cmd_str for t in ["crontab", ".bashrc", ".bash_profile", "systemctl enable"]):
+            return "bot_enrollment", "automated_bot"
+
+        # SCP upload + execute = malware deployment (must check before generic scp/lateral rule)
+        # 'scp -t' is the honeypot-side receive of an attacker SCP push
+        has_scp_upload = "scp -t " in cmd_str or "scp -f " in cmd_str
+        has_execute = any(t in cmd_str for t in ["chmod +x", "bash -c", "bash ./", ".sh", "sh ./", "./"])
+        if has_scp_upload and has_execute:
+            return "malware_deployment", "advanced_human"
+
+        if any(t in cmd_str for t in ["ssh ", "scp ", "rsync "]) and len(all_cmds) > 3:
+            return "lateral_movement", "advanced_human"
+
+        # System resource survey = bot_enrollment (botnet candidate screening)
+        if any(t in cmd_str for t in ["nproc", "cpu mhz", "lsb_release", "free -h", "/proc/cpuinfo"]):
+            return "bot_enrollment", "automated_bot"
+
+        # RouterOS / embedded device targeting
+        if "/ip cloud" in cmd_str or "/ip address" in cmd_str:
+            return "bot_enrollment", "automated_bot"
+
+        # Fingerprinting bots: only run system-info commands (uname, id, etc.)
+        fingerprint = {"uname", "id", "whoami", "hostname", "ifconfig", "ip"}
+        if base_cmds and base_cmds.issubset(fingerprint | {"ls", "pwd", "env", "cat", "ps"}):
+            tier = "automated_bot" if self.session_count >= 3 else "beginner"
+            return "bot_enrollment", tier
+
+        # Repeat attacker with no commands = persistent credential stuffing
+        if self.total_commands == 0:
+            if self.session_count >= 5:
+                return "credential_harvesting", "automated_bot"
+            if self.session_count >= 2:
+                return "credential_harvesting", "beginner"
+
+        tier = "automated_bot" if self.session_count >= 5 else "beginner"
+        return "reconnaissance", tier
+
+    def recalculate_score(self) -> float:
+        """Recompute threat_score from stored profile data (no live session needed)."""
+        # Use average confidence from stored session history when available
+        conf_vals = [s["confidence"] for s in self.sessions if isinstance(s.get("confidence"), (int, float))]
+        confidence = sum(conf_vals) / len(conf_vals) if conf_vals else self._INTENT_CONFIDENCE.get(self.classified_intent, 0.5)
+
+        # Reconstruct ttp_score from stored TTPs (one weight contribution per tactic)
+        counted: set[str] = set()
+        ttp_score = 0.0
+        for ttp in self.ttps:
+            tactic = ttp.get("tactic", "")
+            if tactic not in counted:
+                ttp_score += self._TACTIC_WEIGHTS.get(tactic, 5) * float(ttp.get("confidence", 0.8))
+                counted.add(tactic)
+        ttp_score = min(ttp_score, 40.0)
+
+        self.threat_score = self._compute_threat_score(confidence, ttp_score, self.attacker_tier)
+        return self.threat_score
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -117,6 +240,23 @@ class ProfileStore:
             {"_id": 0},
         ).sort("threat_score", -1).limit(limit)
         return list(cursor)
+
+    def recalculate_all(self) -> int:
+        """Recompute intent, tier, and threat scores for every profile. Returns update count."""
+        count = 0
+        for doc in self.collection.find({}, {"_id": 0}):
+            for ts_field in ("first_seen", "last_seen"):
+                if not isinstance(doc.get(ts_field), (int, float)):
+                    doc[ts_field] = time.time()
+            try:
+                profile = AttackerProfile(**{k: v for k, v in doc.items() if k in AttackerProfile.__dataclass_fields__})
+                profile.classified_intent, profile.attacker_tier = profile.reclassify_intent()
+                profile.recalculate_score()
+                self.save(profile)
+                count += 1
+            except Exception as exc:
+                logger.error("Recalc failed for %s: %s", doc.get("src_ip"), exc)
+        return count
 
     def get_active_sessions(self, since_secs: float = 300) -> list[dict]:
         cutoff = time.time() - since_secs

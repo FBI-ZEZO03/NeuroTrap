@@ -81,16 +81,19 @@ function renderCountries(countries) {
     return;
   }
   const max = countries[0]?.count || 1;
+  el.style.maxHeight = '480px';
+  el.style.overflowY = 'auto';
   el.innerHTML = countries.map((c, i) => {
-    const pct = Math.round((c.count / max) * 100);
-    const rank_color = i === 0 ? '#f43f5e' : i === 1 ? '#f59e0b' : i === 2 ? '#a855f7' : '#475569';
+    const pct   = Math.round((c.count / max) * 100);
+    const color = i === 0 ? '#f43f5e' : i === 1 ? '#f59e0b' : i === 2 ? '#a855f7' : i < 5 ? '#6366f1' : '#475569';
+    const ips   = c.ip_count ? `<span style="color:var(--t4);font-size:10px;margin-left:4px">${c.ip_count} IP${c.ip_count>1?'s':''}</span>` : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
-      <span style="color:${rank_color};font-weight:700;font-size:11px;width:18px;text-align:right">${i+1}</span>
-      <span style="flex:1;color:var(--text);font-size:12px">${c.country}</span>
+      <span style="color:${color};font-weight:700;font-size:11px;width:18px;text-align:right">${i+1}</span>
+      <span style="flex:1;color:var(--text);font-size:12px">${c.country}${ips}</span>
       <div style="width:90px;height:5px;background:var(--border2);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${rank_color};border-radius:3px"></div>
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
       </div>
-      <span style="color:var(--t3);font-size:11px;width:28px;text-align:right">${c.count}</span>
+      <span style="color:${color};font-size:11px;font-weight:600;width:42px;text-align:right">${c.count.toLocaleString()}</span>
     </div>`;
   }).join('');
 }
@@ -158,7 +161,7 @@ function renderDashTopCountries(countries) {
     return;
   }
   const max = countries[0]?.count || 1;
-  el.innerHTML = countries.slice(0, 10).map((c, i) => {
+  el.innerHTML = countries.slice(0, 20).map((c, i) => {
     const pct = Math.round((c.count / max) * 100);
     const rank_color = i === 0 ? '#f43f5e' : i === 1 ? '#f59e0b' : i < 4 ? '#a855f7' : '#475569';
     return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
