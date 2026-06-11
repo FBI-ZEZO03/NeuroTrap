@@ -82,10 +82,10 @@ class GADCFEngine:
             return results
 
     def _persist(self, ip: str, assets: list[GeneratedAsset], intent: str, industry: str):
-        try:
-            for asset in assets:
+        for asset in assets:
+            try:
                 doc = asset.to_dict()
                 doc["src_ip"] = ip
                 self.db["gadcf_assets"].insert_one(doc)
-        except Exception as exc:
-            logger.debug("GADCF persist failed: %s", exc)
+            except Exception as exc:
+                logger.error("GADCF persist failed for %s asset=%s: %s", ip, asset.asset_type, exc)
