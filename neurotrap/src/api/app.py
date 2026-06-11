@@ -1186,12 +1186,76 @@ def _live_feed_poller():
             logger.debug("live_feed_poller error: %s", exc)
 
 
-# Start the poller once (guarded so it doesn't double-start under reloader)
+def _deception_poller():
+    """Background thread: spawns deception environments for top-threat profiles.
+    Runs every 60 s and covers for the standalone deception-engine container if
+    it is not running, so live environments are always kept current."""
+    import time as _time
+    _engine_box = [None]
+
+    while True:
+        _time.sleep(60)
+        try:
+            db = get_db()
+            if db is None:
+                continue
+
+            if _engine_box[0] is None:
+                try:
+                    from src.deception.deception_engine import DeceptionEngine
+                    _engine_box[0] = DeceptionEngine(db)
+                    logger.info("DeceptionPoller: engine initialized")
+                except Exception as exc:
+                    logger.warning("DeceptionPoller: engine init failed: %s", exc)
+                    continue
+
+            engine = _engine_box[0]
+            active_ips = {env.src_ip for env in engine.get_active_environments()}
+
+            try:
+                top_profiles = list(
+                    db["attacker_profiles"].find(
+                        {"threat_score": {"$gte": 10}},
+                        {"_id": 0},
+                    ).sort("threat_score", -1).limit(10)
+                )
+            except Exception:
+                continue
+
+            try:
+                from src.behavior.attacker_profile import AttackerProfile
+            except Exception:
+                continue
+
+            for p_dict in top_profiles:
+                ip = p_dict.get("src_ip", "")
+                if not ip or ip in active_ips or p_dict.get("is_blocked", False):
+                    continue
+                try:
+                    profile = AttackerProfile(**{
+                        k: v for k, v in p_dict.items()
+                        if k in AttackerProfile.__dataclass_fields__
+                    })
+                    engine.generate_environment(profile)
+                    logger.info(
+                        "DeceptionPoller: spawned env for %s (score=%.1f tier=%s)",
+                        ip, profile.threat_score, profile.attacker_tier,
+                    )
+                except Exception as exc:
+                    logger.debug("DeceptionPoller: failed for %s: %s", ip, exc)
+
+        except Exception as exc:
+            logger.debug("deception_poller error: %s", exc)
+
+
+# Start background threads once (guarded so they don't double-start under reloader)
 import os as _os
 if not _os.environ.get("WERKZEUG_RUN_MAIN"):
     import threading as _threading
     _poller = _threading.Thread(target=_live_feed_poller, daemon=True, name="live-feed-poller")
     _poller.start()
+    _dec_poller = _threading.Thread(target=_deception_poller, daemon=True, name="deception-poller")
+    _dec_poller.start()
 
 
 if __name__ == "__main__":

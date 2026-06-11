@@ -157,5 +157,5 @@ class CBEEEngine:
     def _persist_injection(self, injection: BaitInjection):
         try:
             self.db["cbee_injections"].insert_one(injection.to_dict())
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.error("Failed to persist CBEE injection for %s: %s", injection.src_ip, exc)
