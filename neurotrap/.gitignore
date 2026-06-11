@@ -25,3 +25,6 @@ data/*.db-wal
 data/*.db-shm
 .DS_Store
 Thumbs.db
+
+# Allow GP documentation docx
+!Documentation/NeuroTrap_CADN_GP_Documentation.docx
