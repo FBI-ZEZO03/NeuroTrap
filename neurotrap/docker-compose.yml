@@ -250,6 +250,8 @@ services:
       - SECRET_KEY=${SECRET_KEY:-change_me_in_production}
       - JWT_SECRET=${JWT_SECRET:-change_me_jwt}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - SOC_ANALYST_MODEL=${SOC_ANALYST_MODEL:-llama-3.3-70b-versatile}
     depends_on:
       - mongodb
 

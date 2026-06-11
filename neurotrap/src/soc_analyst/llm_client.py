@@ -1,16 +1,16 @@
 """
-llm_client.py — Thin Anthropic Messages API client for the AI SOC Analyst.
+llm_client.py — LLM client for the AI SOC Analyst and GADCF.
 
-Uses `requests` (already a project dependency) rather than the anthropic SDK,
-so no new package is required. Degrades gracefully: when no usable
-ANTHROPIC_API_KEY is configured the calls return None and the engine falls
-back to its deterministic heuristic output — so the module runs fully offline
-for the demo, matching the rest of the stack.
+Provider priority (first available key wins):
+  1. Groq  (GROQ_API_KEY  — OpenAI-compatible, fast inference)
+  2. Anthropic (ANTHROPIC_API_KEY — Claude)
 
-Set a real key in .env (ANTHROPIC_API_KEY) to enable live LLM generation.
-Optionally override the model with SOC_ANALYST_MODEL (default: Haiku for
-fast, cheap analyst summaries). Switch provider to OpenAI by pointing the
-SOC analyst at your own wrapper — Anthropic is the project default.
+Falls back to deterministic heuristic output when no key is configured,
+so the system runs fully offline for demos.
+
+Override the model via SOC_ANALYST_MODEL env var.
+  Groq default:      llama-3.3-70b-versatile
+  Anthropic default: claude-haiku-4-5-20251001
 """
 
 from __future__ import annotations
@@ -20,12 +20,23 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
-DEFAULT_MODEL = os.getenv("SOC_ANALYST_MODEL", "claude-haiku-4-5-20251001")
+_ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+_GROQ_URL      = "https://api.groq.com/openai/v1/chat/completions"
+
+_GROQ_DEFAULT_MODEL      = "llama-3.3-70b-versatile"
+_ANTHROPIC_DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+
 _PLACEHOLDERS = ("", "your_anthropic_key", "change_me", "changeme")
 
 
-def _api_key() -> Optional[str]:
+# ── Key helpers ────────────────────────────────────────────────────────────────
+
+def _groq_key() -> Optional[str]:
+    key = (os.getenv("GROQ_API_KEY") or "").strip()
+    return key if key and key not in _PLACEHOLDERS else None
+
+
+def _anthropic_key() -> Optional[str]:
     key = (os.getenv("ANTHROPIC_API_KEY") or "").strip()
     if not key or key.lower() in _PLACEHOLDERS or key.startswith("your_"):
         return None
@@ -33,39 +44,97 @@ def _api_key() -> Optional[str]:
 
 
 def llm_available() -> bool:
-    """True when a usable Anthropic key is present (no network call made)."""
-    return _api_key() is not None
+    """True when at least one LLM provider key is configured."""
+    return _groq_key() is not None or _anthropic_key() is not None
 
 
-def llm_complete(system: str, user: str, *, max_tokens: int = 800,
-                 temperature: float = 0.4) -> Optional[str]:
+# ── Public interface ───────────────────────────────────────────────────────────
+
+def llm_complete(
+    system: str,
+    user: str,
+    *,
+    max_tokens: int = 800,
+    temperature: float = 0.4,
+) -> Optional[str]:
     """
     Single-turn completion. Returns the model's text, or None on any failure
-    (missing key, network error, non-200) so the caller can fall back.
+    so callers can fall back to heuristic output.
+
+    Tries Groq first (faster + cheaper), then Anthropic.
     """
-    key = _api_key()
-    if key is None:
-        return None
+    groq = _groq_key()
+    if groq:
+        result = _groq_complete(groq, system, user,
+                                max_tokens=max_tokens, temperature=temperature)
+        if result:
+            return result
+
+    anthropic = _anthropic_key()
+    if anthropic:
+        return _anthropic_complete(anthropic, system, user,
+                                   max_tokens=max_tokens, temperature=temperature)
+
+    return None
+
+
+# ── Provider implementations ───────────────────────────────────────────────────
+
+def _groq_complete(
+    key: str, system: str, user: str, *, max_tokens: int, temperature: float
+) -> Optional[str]:
     try:
         import requests
     except ImportError:
-        logger.debug("requests not available; SOC analyst running heuristic-only")
         return None
-
+    model = os.getenv("SOC_ANALYST_MODEL", _GROQ_DEFAULT_MODEL)
     try:
         resp = requests.post(
-            ANTHROPIC_URL,
+            _GROQ_URL,
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user",   "content": user},
+                ],
+                "max_tokens":  max_tokens,
+                "temperature": temperature,
+            },
+            timeout=30,
+        )
+        if resp.ok:
+            choices = resp.json().get("choices", [])
+            text = choices[0].get("message", {}).get("content", "").strip() if choices else ""
+            return text or None
+        logger.warning("Groq API %s: %s", resp.status_code, resp.text[:200])
+    except Exception as exc:
+        logger.debug("Groq call failed: %s", exc)
+    return None
+
+
+def _anthropic_complete(
+    key: str, system: str, user: str, *, max_tokens: int, temperature: float
+) -> Optional[str]:
+    try:
+        import requests
+    except ImportError:
+        return None
+    model = os.getenv("SOC_ANALYST_MODEL", _ANTHROPIC_DEFAULT_MODEL)
+    try:
+        resp = requests.post(
+            _ANTHROPIC_URL,
             headers={
-                "x-api-key": key,
+                "x-api-key":         key,
                 "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
+                "content-type":      "application/json",
             },
             json={
-                "model": DEFAULT_MODEL,
+                "model":      model,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                "system": system,
-                "messages": [{"role": "user", "content": user}],
+                "system":     system,
+                "messages":   [{"role": "user", "content": user}],
             },
             timeout=30,
         )
@@ -74,6 +143,6 @@ def llm_complete(system: str, user: str, *, max_tokens: int = 800,
             text = "".join(p.get("text", "") for p in parts if p.get("type") == "text")
             return text.strip() or None
         logger.warning("Anthropic API %s: %s", resp.status_code, resp.text[:200])
-    except Exception as exc:  # noqa: BLE001 — never let the analyst crash a request
+    except Exception as exc:
         logger.debug("Anthropic call failed: %s", exc)
     return None
