@@ -715,13 +715,22 @@ def get_gadcf_assets():
 def gadcf_generate():
     data = request.get_json(silent=True) or {}
     try:
-        from src.gadcf.content_generator import ContentGenerator
-        gen    = ContentGenerator(use_llm=False)
-        assets = gen.generate_package(
-            industry=data.get("industry","saas_startup"),
-            attacker_intent=data.get("intent","reconnaissance"),
-            sophistication=data.get("sophistication","beginner"),
-        )
+        gadcf = _get_gadcf()
+        industry    = data.get("industry", "saas_startup")
+        intent      = data.get("attacker_intent") or data.get("intent", "reconnaissance")
+        sophistication = data.get("sophistication", "beginner")
+        src_ip      = data.get("src_ip", "unknown")
+        if gadcf:
+            from src.gadcf.content_generator import ContentGenerator
+            gen    = ContentGenerator(use_llm=gadcf.generator.use_llm)
+            assets = gen.generate_package(industry=industry, attacker_intent=intent,
+                                          sophistication=sophistication)
+            gadcf._persist(src_ip, assets, intent, industry)
+        else:
+            from src.gadcf.content_generator import ContentGenerator
+            gen    = ContentGenerator(use_llm=False)
+            assets = gen.generate_package(industry=industry, attacker_intent=intent,
+                                          sophistication=sophistication)
         return jsonify({"assets": [a.to_dict() for a in assets], "count": len(assets)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
