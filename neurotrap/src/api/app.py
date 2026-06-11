@@ -715,22 +715,24 @@ def get_gadcf_assets():
 def gadcf_generate():
     data = request.get_json(silent=True) or {}
     try:
-        gadcf = _get_gadcf()
+        from src.gadcf.content_generator import ContentGenerator
         industry    = data.get("industry", "saas_startup")
         intent      = data.get("attacker_intent") or data.get("intent", "reconnaissance")
         sophistication = data.get("sophistication", "beginner")
         src_ip      = data.get("src_ip", "unknown")
-        if gadcf:
-            from src.gadcf.content_generator import ContentGenerator
-            gen    = ContentGenerator(use_llm=gadcf.generator.use_llm)
-            assets = gen.generate_package(industry=industry, attacker_intent=intent,
-                                          sophistication=sophistication)
-            gadcf._persist(src_ip, assets, intent, industry)
-        else:
-            from src.gadcf.content_generator import ContentGenerator
-            gen    = ContentGenerator(use_llm=False)
-            assets = gen.generate_package(industry=industry, attacker_intent=intent,
-                                          sophistication=sophistication)
+        gen    = ContentGenerator(use_llm=False)
+        assets = gen.generate_package(industry=industry, attacker_intent=intent,
+                                      sophistication=sophistication)
+        db = get_db()
+        if db is not None:
+            import time as _t
+            for asset in assets:
+                try:
+                    doc = asset.to_dict()
+                    doc["src_ip"] = src_ip
+                    db["gadcf_assets"].insert_one(doc)
+                except Exception as exc:
+                    logger.error("GADCF persist failed %s: %s", asset.asset_type, exc)
         return jsonify({"assets": [a.to_dict() for a in assets], "count": len(assets)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
