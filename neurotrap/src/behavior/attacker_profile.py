@@ -68,25 +68,25 @@ class AttackerProfile:
         tier_bonus = {"beginner": 0, "automated_bot": 15, "advanced_human": 30}
         base = (confidence * 40) + ttp_score + tier_bonus.get(tier, 0)
 
-        # Persistence: tiered by session count. Any return visit to a honeypot
-        # is a strong signal — scale aggressively for repeat attackers.
+        # Persistence bonus — reaching a honeypot at all is suspicious.
+        # Single visit starts at MEDIUM range; repeat visits scale to CRITICAL.
         n = self.session_count
         if n >= 100:
             persistence_bonus = 65
         elif n >= 50:
-            persistence_bonus = 60
+            persistence_bonus = 62
         elif n >= 20:
-            persistence_bonus = 50
+            persistence_bonus = 55
         elif n >= 10:
-            persistence_bonus = 40
+            persistence_bonus = 48
         elif n >= 5:
-            persistence_bonus = 28
+            persistence_bonus = 42
         elif n >= 3:
-            persistence_bonus = 22
+            persistence_bonus = 37
         elif n >= 2:
-            persistence_bonus = 18
+            persistence_bonus = 32
         else:
-            persistence_bonus = 5
+            persistence_bonus = 27   # single honeypot hit = elevated suspicion
 
         # Volume: deeper engagement signal, +1 per 5 cmds, capped at +15
         volume_bonus = min(self.total_commands // 5, 15)
